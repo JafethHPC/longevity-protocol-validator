@@ -1,0 +1,22 @@
+.DS_Store
+.env
+.vscode/
+.idea/
+
+# backend
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+coverage/
+htmlcov/
+
+# frontend
+node_modules/
+dist/
+.angular/
+npm-debug.log
+yarn-error.log
+
+# database
+weaviate_data/
