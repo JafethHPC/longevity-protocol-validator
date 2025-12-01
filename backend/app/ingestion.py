@@ -29,7 +29,7 @@ def fetch_paper_details(pubmed_id):
         abstract = " ".join(abstract_list) if abstract_list else "No Abstract Found."
 
         try:
-            year = article['Journal']['JournalIssue']['PubDate'].get('Year')
+            year = int(article['Journal']['JournalIssue']['PubDate'].get('Year'))
         except (ValueError, TypeError):
             year = None
 
@@ -59,7 +59,7 @@ def ingest_paper(paper_data):
         if not client.collections.exists("Paper"):
             client.collections.create(
                 name="Paper",
-                vector_config=wvc.Configure.Vectorizer.text2vec_openai(),
+                vectorizer_config=wvc.Configure.Vectorizer.text2vec_openai(),
                 properties=[
                     wvc.Property(name="title", data_type=wvc.DataType.TEXT),
                     wvc.Property(name="abstract", data_type=wvc.DataType.TEXT),
