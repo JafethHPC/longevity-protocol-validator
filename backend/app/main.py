@@ -5,6 +5,7 @@ import weaviate
 import weaviate.classes.query as wvq
 from app.core.config import settings
 from langsmith import Client
+from app.rag import generate_answer
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -19,6 +20,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+class ChatRequest(BaseModel):
+    query: str
+
+class ChatResponse(BaseModel):
+    answer: str
+    context_used: str
 
 class SearchRequest(BaseModel):
     query: str
@@ -78,6 +86,17 @@ async def search_papers(request: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         client.close()
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat_with_papers(request: ChatRequest):
+    """
+    RAG Chat endpoint: Generates an answer based on stored papers.
+    """
+    try: 
+        result = generate_answer(request.query)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
 
 if __name__ == "__main__":
