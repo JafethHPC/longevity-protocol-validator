@@ -7,47 +7,69 @@ import ssl
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
-TEST_PUBMED_ID = "19587680"
+Entrez.email = "your_email@example.com"
 
-def fetch_paper_details(pubmed_id):
+def search_pubmed_ids(term: str, max_results: int = 10) -> list[str]:
     """
-    Fetches the title and abstract of a paper from PubMed
+    Searches for PubMed IDs based on a search term
     """
-    Entrez.email = "your_email@example.com"
+    try:
+        handle = Entrez.esearch(db="pubmed", term=term, retmax=max_results)
+        record = Entrez.read(handle)
+        handle.close()
+        print(record)
+        ids = record["IdList"]
+        return ids
+    except Exception as e:
+        print(f"Error searching PubMed: {e}")
+        return []
 
-    print(f"Fetching paper details for {pubmed_id}")
+def fetch_details_batch(id_list: list[str]):
+    """
+    Fetches batch of paper details from PubMed
+    """
+    if not id_list:
+        return []
+
+    print(len(id_list))
+    ids_str = ",".join(id_list)
 
     try:
-        handle = Entrez.efetch(db="pubmed", id=pubmed_id, retmode="xml")
+        handle = Entrez.efetch(db="pubmed", id=ids_str, retmode="xml")
         records = Entrez.read(handle)
         handle.close()
 
-        paper = records['PubmedArticle'][0]
-        article = paper['MedlineCitation']['Article']
+        cleaned_papers = []
+        pubmed_articles = records['PubmedArticle']
 
-        abstract_list = article.get('Abstract', {}).get('AbstractText', [])
-        abstract = " ".join(abstract_list) if abstract_list else "No Abstract Found."
+        for paper in pubmed_articles:
+            try:
+                article = paper['MedlineCitation']['Article']
+                
+                abstract_list = article.get('Abstract', {}).get('AbstractText', [])
+                abstract_text = " ".join(abstract_list) if abstract_list else "No Abstract Found."
 
-        try:
-            year = int(article['Journal']['JournalIssue']['PubDate'].get('Year'))
-        except (ValueError, TypeError):
-            year = None
+                if abstract_text == "No Abstract Found.":
+                    continue
 
-        return {
-            "title": article['ArticleTitle'],
-            "abstract": abstract,
-            "journal": article['Journal'].get('Title', article['Journal'].get('ISOAbbreviation', 'N/A')),
-            "year": year,
-            "source_id": pubmed_id
-        }
-    
+                cleaned_papers.append({
+                    "title": article['ArticleTitle'],
+                    "abstract": abstract_text,
+                    "journal": article['Journal']['Title'],
+                    "year": int(article['Journal']['JournalIssue']['PubDate'].get('Year', 0)),
+                    "source_id": paper['MedlineCitation']['PMID']
+                })
+            except KeyError:
+                continue
+
+        return cleaned_papers
     except Exception as e:
-        print(f"Error: {e}")
-        return None
+        print(f"Error fetching details: {e}")
+        return []
 
-def ingest_paper(paper_data):
+def ingest_paper_batch(paper_data: list[dict]):
     """
-    Connects to Weaviate and stores the paper data
+    Connects to Weaviate and does a bulk ingestion of the paper data
     """
     client = weaviate.connect_to_local(
         headers={
@@ -72,18 +94,25 @@ def ingest_paper(paper_data):
         
         papers_collection = client.collections.get("Paper")
 
-        uuid = papers_collection.data.insert(
-            properties=paper_data
-        )
-        print(f"Stored paper in Weaviate. UUID: {uuid}")
+        with papers_collection.batch.dynamic() as batch:
+            for paper in paper_data:
+                batch.add_object(
+                    properties=paper
+                )
+        
+        print(f"Ingestion of {len(paper_data)} papers completed")
 
     finally:
         client.close()
 
 if __name__ == "__main__":
-    data = fetch_paper_details(TEST_PUBMED_ID)
-    
-    if data and data['abstract'] != "No Abstract Found.":
-        ingest_paper(data)
+    SEARCH_TERM = "longevity AND (rapamycin OR metformin OR fasting)"
+
+    ids = search_pubmed_ids(SEARCH_TERM)
+
+    papers = fetch_details_batch(ids)
+
+    if papers:
+        ingest_paper_batch(papers)
     else:
-        print("Skipped ingestions: Invalid data")
+        print("No papers found")
