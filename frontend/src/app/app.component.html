@@ -22,9 +22,7 @@
           <div [ngClass]="{
             'bg-blue-600 text-white rounded-br-none': msg.role === 'user',
             'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm': msg.role === 'ai'
-          }" class="max-w-[80%] px-6 py-4 rounded-2xl text-base leading-relaxed whitespace-pre-wrap">
-            {{ msg.text }}
-          </div>
+          }" class="max-w-[80%] px-6 py-4 rounded-2xl text-base leading-relaxed"><div class="prose prose-sm max-w-none" [ngClass]="{'prose-invert': msg.role === 'user'}" [innerHTML]="msg.text | markdown"></div></div>
 
           <div *ngIf="msg.role === 'ai' && msg.context" class="mt-2 ml-2 max-w-[80%]">
             <details class="text-xs group">
@@ -32,9 +30,7 @@
                 <span>View Sources</span>
                 <span class="group-open:rotate-180 transition-transform">▼</span>
               </summary>
-              <div class="mt-2 p-3 bg-gray-100 rounded border border-gray-200 text-gray-600 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
-                {{ msg.context }}
-              </div>
+              <div class="mt-2 p-3 bg-gray-100 rounded border border-gray-200 text-gray-600 font-mono max-h-40 overflow-y-auto"><div class="prose prose-sm max-w-none" [innerHTML]="msg.context | markdown"></div></div>
             </details>
           </div>
 

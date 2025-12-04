@@ -1,7 +1,8 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Paper, PaperService } from './services/paper.service';
+import { PaperService } from './services/paper.service';
+import { MarkdownPipe } from './pipes/markdown.pipe';
 
 interface Message {
   role: 'user' | 'ai';
@@ -12,9 +13,9 @@ interface Message {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownPipe],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.css',
+  styleUrls: ['./app.component.css'],
 })
 export class AppComponent {
   paperService = inject(PaperService);
