@@ -3,6 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Paper, PaperService } from './services/paper.service';
 
+interface Message {
+  role: 'user' | 'ai';
+  text: string;
+  context?: string;
+}
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -13,26 +19,29 @@ import { Paper, PaperService } from './services/paper.service';
 export class AppComponent {
   paperService = inject(PaperService);
 
-  searchQuery = '';
-  papers: Paper[] = [];
+  messages: Message[] = [];
+  currentInput = '';
   isLoading = false;
 
-  onSearch() {
-    if (!this.searchQuery.trim()) return;
+  sendMessage() {
+    if (!this.currentInput.trim()) return;
 
+    const userText = this.currentInput;
+    this.currentInput = '';
     this.isLoading = true;
-    this.papers = [];
 
-    this.paperService.search(this.searchQuery).subscribe({
-      next: (results: Paper[]) => {
-        this.papers = results;
+    this.messages.push({ role: 'user', text: userText});
+    
+    this.paperService.chat(userText).subscribe({
+      next: (response: any) => {
         this.isLoading = false;
+        this.messages.push({ role: 'ai', text: response.answer, context: response.context_used});
       },
-      error: (err: any) => {
-        console.error('Search failed:', err);
+      error: (error: any) => {
         this.isLoading = false;
-        alert('Backend error. Check console.');
-      },
-    });
+        this.messages.push({ role: 'ai', text: 'An error occurred while processing your request.'});
+        console.error('Error:', error);
+      }
+    })
   }
 }

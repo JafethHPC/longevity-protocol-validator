@@ -14,6 +14,11 @@ export interface SearchRequest {
   limit: number;
 }
 
+export interface ChatResponse {
+  answer: string;
+  context_used: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -25,6 +30,12 @@ export class PaperService {
     return this.http.post<Paper[]>(`${this.apiUrl}/search`, {
       query: query,
       limit: 3,
+    });
+  }
+
+  chat(query: string): Observable<ChatResponse> {
+    return this.http.post<ChatResponse>(`${this.apiUrl}/chat`, {
+      query: query,
     });
   }
 }

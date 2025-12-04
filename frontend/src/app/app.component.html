@@ -1,55 +1,71 @@
-<div class="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
-  <div class="text-center mb-8">
-    <h1 class="text-4xl font-bold text-gray-900 mb-2">Longevity Validator</h1>
-    <p class="text-gray-600">Semantic search across scientific protocols</p>
-  </div>
+<div class="flex flex-col h-screen bg-gray-50">
+      
+      <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">L</div>
+          <h1 class="text-xl font-bold text-gray-800">Longevity Validator</h1>
+        </div>
+        <div class="text-sm text-gray-500">MVP v1.0</div>
+      </header>
 
-  <div class="w-full max-w-2xl mb-8">
-    <div class="relative">
-      <input
-        type="text"
-        [(ngModel)]="searchQuery"
-        (keyup.enter)="onSearch()"
-        placeholder="Ask a question (e.g. 'Does Rapamycin extend life?')"
-        class="w-full p-4 pl-6 rounded-full border border-gray-300 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-      />
-      <button
-        (click)="onSearch()"
-        class="absolute right-2 top-2 bg-blue-600 text-white px-6 py-2 rounded-full hover:bg-blue-700 transition-colors font-medium"
-      >
-        Search
-      </button>
-    </div>
-  </div>
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        
+        <div *ngIf="messages.length === 0" class="text-center mt-20 text-gray-400">
+          <p class="text-lg font-medium">Ask about longevity protocols.</p>
+          <p class="text-sm">Driven by PubMed & Weaviate</p>
+        </div>
 
-  <div *ngIf="isLoading" class="text-blue-600 font-semibold animate-pulse">
-    Analyzing Vector Space...
-  </div>
+        <div *ngFor="let msg of messages" 
+             [ngClass]="{'items-end': msg.role === 'user', 'items-start': msg.role === 'ai'}"
+             class="flex flex-col">
+          
+          <div [ngClass]="{
+            'bg-blue-600 text-white rounded-br-none': msg.role === 'user',
+            'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm': msg.role === 'ai'
+          }" class="max-w-[80%] px-6 py-4 rounded-2xl text-base leading-relaxed whitespace-pre-wrap">
+            {{ msg.text }}
+          </div>
 
-  <div class="w-full max-w-4xl grid gap-6">
-    <div
-      *ngFor="let paper of papers"
-      class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-    >
-      <div class="flex justify-between items-start mb-2">
-        <h3 class="text-xl font-bold text-gray-800 leading-tight w-3/4">
-          {{ paper.title }}
-        </h3>
-        <span
-          class="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-mono"
-        >
-          Match: {{ (1 - paper.distance) * 100 | number : "1.0-0" }}%
-        </span>
+          <div *ngIf="msg.role === 'ai' && msg.context" class="mt-2 ml-2 max-w-[80%]">
+            <details class="text-xs group">
+              <summary class="cursor-pointer text-blue-600 font-medium hover:text-blue-800 flex items-center gap-1">
+                <span>View Sources</span>
+                <span class="group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <div class="mt-2 p-3 bg-gray-100 rounded border border-gray-200 text-gray-600 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+                {{ msg.context }}
+              </div>
+            </details>
+          </div>
+
+        </div>
+
+        <div *ngIf="isLoading" class="flex items-center gap-2 text-gray-400 text-sm ml-4">
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+          <span>Reading papers...</span>
+        </div>
       </div>
 
-      <div class="text-sm text-gray-500 mb-3 font-semibold">
-        {{ paper.year }} • Relevance Score:
-        {{ paper.distance | number : "1.4-4" }}
+      <div class="p-6 bg-white border-t border-gray-200">
+        <div class="max-w-4xl mx-auto relative">
+          <input 
+            type="text" 
+            [(ngModel)]="currentInput" 
+            (keyup.enter)="sendMessage()"
+            [disabled]="isLoading"
+            placeholder="Ask a scientific question..."
+            class="w-full p-4 pr-16 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all shadow-sm"
+          >
+          <button 
+            (click)="sendMessage()"
+            [disabled]="!currentInput.trim() || isLoading"
+            class="absolute right-2 top-2 bottom-2 bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            ➤
+          </button>
+        </div>
       </div>
 
-      <p class="text-gray-600 leading-relaxed text-sm">
-        {{ paper.abstract }}
-      </p>
     </div>
-  </div>
-</div>
