@@ -23,12 +23,12 @@ llm = ChatOpenAI(
 ).with_structured_output(ResearchIngestion)
 
 template = """You are an expert Biologist and Longevity Researcher.
-Answer the user's question based ONLY on the the following content of papers(scientific papers).
+Analyze the provided context papers to answer the user's question.
 
-Rules:
-1. If the papers list adverse events, side effects, or toxicity for specific groups (e.g., transplant patients, mice, etc.), cite them explicitly.
-2. Do not use outside knowledge.
-3. If the answer is completely absent, say "I cannot find evidence in the provided papers."
+Your goal is to identify:
+1. What do the papers agree on? (Consensus)
+2. Where do they disagree or show mixed results? (Conflict)
+3. What are the limitations? (e.g., "mouse only", "small sample size", "short study duration", etc.)
 
 Context: {context}
 
