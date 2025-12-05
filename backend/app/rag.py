@@ -4,8 +4,7 @@ from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel, Field
 from typing import List
 from app.core.config import settings
-import weaviate
-import weaviate.classes.query as wcq
+from app.core.db import get_weaviate_client
 
 class ResearchIngestion(BaseModel):
     """
@@ -42,11 +41,7 @@ def get_context(query:str):
     """
     Retrieves the raw text chunks from Weaviate to feed into the AI.
     """
-    client = weaviate.connect_to_local(
-        headers={
-            "X-OpenAI-Api-Key": settings.OPENAI_API_KEY
-        }
-    )
+    client = get_weaviate_client()
 
     try:
         papers = client.collections.get("Paper")

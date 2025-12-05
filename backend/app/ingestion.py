@@ -4,6 +4,7 @@ import weaviate.classes.config as wvc
 from Bio import Entrez
 from app.core.config import settings
 import ssl
+from app.core.db import get_weaviate_client
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -17,7 +18,6 @@ def search_pubmed_ids(term: str, max_results: int = 10) -> list[str]:
         handle = Entrez.esearch(db="pubmed", term=term, retmax=max_results)
         record = Entrez.read(handle)
         handle.close()
-        print(record)
         ids = record["IdList"]
         return ids
     except Exception as e:
@@ -31,7 +31,6 @@ def fetch_details_batch(id_list: list[str]):
     if not id_list:
         return []
 
-    print(len(id_list))
     ids_str = ",".join(id_list)
 
     try:
@@ -71,11 +70,7 @@ def ingest_paper_batch(paper_data: list[dict]):
     """
     Connects to Weaviate and does a bulk ingestion of the paper data
     """
-    client = weaviate.connect_to_local(
-        headers={
-            "X-OpenAI-Api-Key": settings.OPENAI_API_KEY
-        }
-    )
+    client = get_weaviate_client()
 
     try:
         if not client.collections.exists("Paper"):

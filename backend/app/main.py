@@ -1,11 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import weaviate
-import weaviate.classes.query as wvq
 from app.core.config import settings
 from langsmith import Client
 from app.rag import generate_answer
+from app.core.db import get_weaviate_client
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -58,11 +57,7 @@ async def search_papers(request: SearchRequest):
     Semantic Search endpoint.
     Accepts a query string, embeds it, and finds the nearest papers in Weaviate.
     """
-    client = weaviate.connect_to_local(
-        headers={
-            "X-OpenAI-Api-Key": settings.OPENAI_API_KEY
-        }
-    )
+    client = get_weaviate_client()
 
     try:
         papers = client.collections.get("Paper")

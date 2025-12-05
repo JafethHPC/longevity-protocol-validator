@@ -17,4 +17,8 @@ class Settings:
     LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY")
     LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "longevity-validator-dev")
 
+    # Weaviate
+    WEAVIATE_URL: str = os.getenv("WEAVIATE_URL")
+    WEAVIATE_API_KEY: str = os.getenv("WEAVIATE_API_KEY")
+
 settings = Settings()
