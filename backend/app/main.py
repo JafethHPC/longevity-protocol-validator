@@ -26,6 +26,9 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+    consensus: list[str]
+    conflict: list[str]
+    limitations: str
     context_used: str
 
 class SearchRequest(BaseModel):
