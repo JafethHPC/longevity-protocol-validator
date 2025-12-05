@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/envrionment';
 
 export interface Paper {
   title: string;
@@ -27,7 +28,7 @@ export interface ChatResponse {
 })
 export class PaperService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8000';
+  private apiUrl = environment.apiUrl;
 
   search(query: string): Observable<Paper[]> {
     return this.http.post<Paper[]>(`${this.apiUrl}/search`, {
