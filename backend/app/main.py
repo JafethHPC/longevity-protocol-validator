@@ -9,7 +9,9 @@ from app.core.db import get_weaviate_client
 app = FastAPI(title=settings.PROJECT_NAME)
 
 origins = [
-    "http://localhost:4200"
+    "http://localhost:4200",
+    "http://localhost:8081",
+    "*"
 ]
 
 app.add_middleware(
