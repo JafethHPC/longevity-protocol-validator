@@ -1,13 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PaperService } from './services/paper.service';
+import { ChatResponse, PaperService } from './services/paper.service';
 import { MarkdownPipe } from './pipes/markdown.pipe';
 
 interface Message {
   role: 'user' | 'ai';
-  text: string;
-  context?: string;
+  text?: string;
+  data?: ChatResponse;
 }
 
 @Component({
@@ -36,7 +36,7 @@ export class AppComponent {
     this.paperService.chat(userText).subscribe({
       next: (response: any) => {
         this.isLoading = false;
-        this.messages.push({ role: 'ai', text: response.answer, context: response.context_used});
+        this.messages.push({ role: 'ai', data: response});
       },
       error: (error: any) => {
         this.isLoading = false;

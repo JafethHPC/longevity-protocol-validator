@@ -16,6 +16,9 @@ export interface SearchRequest {
 
 export interface ChatResponse {
   answer: string;
+  consensus: string[];
+  conflict: string[];
+  limitations: string;
   context_used: string;
 }
 
