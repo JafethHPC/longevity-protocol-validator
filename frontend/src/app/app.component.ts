@@ -10,6 +10,11 @@ interface Message {
   data?: ChatResponse;
 }
 
+interface Evidence {
+  title: string;
+  abstract: string;
+}
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -19,6 +24,7 @@ interface Message {
 })
 export class AppComponent {
   paperService = inject(PaperService);
+  activeEvidence: Evidence[] = [];
 
   messages: Message[] = [];
   currentInput = '';
@@ -31,18 +37,39 @@ export class AppComponent {
     this.currentInput = '';
     this.isLoading = true;
 
-    this.messages.push({ role: 'user', text: userText});
-    
+    this.messages.push({ role: 'user', text: userText });
+
     this.paperService.chat(userText).subscribe({
       next: (response: any) => {
         this.isLoading = false;
-        this.messages.push({ role: 'ai', data: response});
+        this.messages.push({ role: 'ai', data: response });
+
+        this.activeEvidence = this.parseEvidence(response.context_used);
       },
       error: (error: any) => {
         this.isLoading = false;
-        this.messages.push({ role: 'ai', text: 'An error occurred while processing your request.'});
+        this.messages.push({
+          role: 'ai',
+          text: 'An error occurred while processing your request.',
+        });
         console.error('Error:', error);
-      }
-    })
+      },
+    });
+  }
+
+  parseEvidence(contextString: string): Evidence[] {
+    if (!contextString) return [];
+
+    const rawChunks = contextString
+      .split('Paper: ')
+      .filter((chunk) => chunk.trim().length > 0);
+
+    return rawChunks.map((chunk) => {
+      const [titlePart, ...abstractParts] = chunk.split('Abstract: ');
+      return {
+        title: titlePart ? titlePart.trim() : 'Unknown Source',
+        abstract: abstractParts.join('Abstract: ').trim(),
+      };
+    });
   }
 }
