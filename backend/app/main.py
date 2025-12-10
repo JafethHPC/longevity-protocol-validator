@@ -5,6 +5,8 @@ from app.core.config import settings
 from langsmith import Client
 from app.rag import generate_answer
 from app.core.db import get_weaviate_client
+from langchain_core.messages import HumanMessage
+from app.agent import agent_executor
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -41,6 +43,9 @@ class PaperResponse(BaseModel):
     abstract: str
     years: int
     distance: float
+
+class AgentRequest(BaseModel):
+    query: str
 
 @app.get("/")
 async def health_check():
@@ -98,6 +103,22 @@ async def chat_with_papers(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+@app.post("/agent/research")
+async def agent_research(request: AgentRequest):
+    """
+    Trigger the Autonomous Researcher
+    """
+    try:
+        initial_state = {"messages": [HumanMessage(content=request.query)]}
+
+        final_state = agent_executor.invoke(initial_state)
+
+        final_response = final_state["messages"][-1].content
+
+        return {"result": final_response}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
