@@ -42,4 +42,10 @@ export class PaperService {
       query: query,
     });
   }
+
+  research(topic: string): Observable<{ result: string }> {
+    return this.http.post<{ result: string }>(`${this.apiUrl}/agent/research`, {
+      query: topic,
+    });
+  }
 }

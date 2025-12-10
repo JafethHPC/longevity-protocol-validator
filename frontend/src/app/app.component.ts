@@ -30,6 +30,9 @@ export class AppComponent {
   currentInput = '';
   isLoading = false;
 
+  isResearchMode = false;
+  isAgentWorking = false;
+
   sendMessage() {
     if (!this.currentInput.trim()) return;
 
@@ -70,6 +73,38 @@ export class AppComponent {
         title: titlePart ? titlePart.trim() : 'Unknown Source',
         abstract: abstractParts.join('Abstract: ').trim(),
       };
+    });
+  }
+
+  toggleMode() {
+    this.isResearchMode = !this.isResearchMode;
+  }
+
+  triggerAgent() {
+    if (!this.currentInput.trim()) return;
+
+    const topic = this.currentInput;
+    this.currentInput = '';
+    this.isAgentWorking = true;
+
+    this.messages.push({
+      role: 'ai',
+      text: 'Thinking... This may take a moment.',
+    });
+
+    this.paperService.research(topic).subscribe({
+      next: (response) => {
+        this.isAgentWorking = false;
+        this.messages.push({ role: 'ai', text: response.result });
+      },
+      error: (error) => {
+        this.isAgentWorking = false;
+        this.messages.push({
+          role: 'ai',
+          text: 'An error occurred while researching.',
+        });
+        console.error(error);
+      },
     });
   }
 }

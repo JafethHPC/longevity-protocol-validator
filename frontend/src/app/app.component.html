@@ -97,19 +97,54 @@
       </div>
 
       <div class="p-6 bg-white border-t border-gray-200">
+        <div class="flex justify-center mb-3">
+          <button
+            (click)="toggleMode()"
+            [class.bg-purple-100]="isResearchMode"
+            [class.text-purple-700]="isResearchMode"
+            [class.bg-gray-100]="!isResearchMode"
+            class="px-4 py-1 cursor-pointer rounded-full text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2"
+          >
+            <span *ngIf="!isResearchMode">💬 Chat Mode</span>
+            <span *ngIf="isResearchMode">🕵️ Research Mode</span>
+            <span class="text-gray-400">| Click to Switch</span>
+          </button>
+        </div>
+
         <div class="relative">
           <input
             type="text"
             [(ngModel)]="currentInput"
-            (keyup.enter)="sendMessage()"
-            [disabled]="isLoading"
-            placeholder="Ask a scientific question..."
-            class="w-full p-4 pr-16 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
+            (keyup.enter)="isResearchMode ? triggerAgent() : sendMessage()"
+            [disabled]="isLoading || isAgentWorking"
+            [placeholder]="
+              isResearchMode
+                ? 'Enter a topic to research (e.g. Ashwagandha)...'
+                : 'Ask a scientific question...'
+            "
+            [class.focus:ring-purple-500]="isResearchMode"
+            [class.focus:border-purple-500]="isResearchMode"
+            class="w-full p-4 pr-16 rounded-xl border border-gray-300 focus:ring-2 outline-none shadow-sm transition-all"
           />
+
+          <div
+            *ngIf="isLoading || isAgentWorking"
+            class="absolute right-14 top-4 text-gray-400"
+          >
+            <div
+              class="animate-spin h-5 w-5 border-2 rounded-full border-t-transparent"
+              [class.border-blue-500]="!isResearchMode"
+              [class.border-purple-500]="isResearchMode"
+            ></div>
+          </div>
+
           <button
-            (click)="sendMessage()"
-            [disabled]="!currentInput.trim() || isLoading"
-            class="absolute right-2 top-2 bottom-2 bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            (click)="isResearchMode ? triggerAgent() : sendMessage()"
+            [disabled]="!currentInput.trim() || isLoading || isAgentWorking"
+            [class.bg-purple-600]="isResearchMode"
+            [class.hover:bg-purple-700]="isResearchMode"
+            [class.bg-blue-600]="!isResearchMode"
+            class="absolute right-2 top-2 bottom-2 text-white px-4 rounded-lg transition-colors disabled:opacity-50"
           >
             ➤
           </button>
