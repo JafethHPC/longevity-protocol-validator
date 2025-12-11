@@ -13,6 +13,7 @@ interface Message {
 interface Evidence {
   title: string;
   abstract: string;
+  filename?: string;
 }
 
 @Component({
@@ -68,10 +69,22 @@ export class AppComponent {
       .filter((chunk) => chunk.trim().length > 0);
 
     return rawChunks.map((chunk) => {
-      const [titlePart, ...abstractParts] = chunk.split('Abstract: ');
+      const [titlePart, rest1] = chunk.split('Source: ');
+
+      if (!rest1) {
+        const [t, a] = chunk.split('Abstract: ');
+        return {
+          title: t.trim(),
+          abstract: a ? a.trim() : '',
+        };
+      }
+
+      const [sourcePart, abstractPart] = rest1.split('Abstract: ');
+
       return {
         title: titlePart ? titlePart.trim() : 'Unknown Source',
-        abstract: abstractParts.join('Abstract: ').trim(),
+        abstract: abstractPart ? abstractPart.trim() : '',
+        filename: sourcePart ? sourcePart.trim() : undefined,
       };
     });
   }

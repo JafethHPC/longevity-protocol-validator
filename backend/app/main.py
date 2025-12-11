@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from app.core.config import settings
 from langsmith import Client
@@ -9,6 +10,8 @@ from langchain_core.messages import HumanMessage
 from app.agent import agent_executor
 
 app = FastAPI(title=settings.PROJECT_NAME)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 origins = [
     "http://localhost:4200",

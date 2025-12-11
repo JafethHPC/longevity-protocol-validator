@@ -51,12 +51,12 @@ def get_context(query:str):
         )
 
         context_str = "\n\n".join([
-            f"Paper: {paper.properties['title']}\nAbstract: {paper.properties['abstract']}"
-            for paper in response.objects
+            f"Paper: {obj.properties['title']}\nSource: {obj.properties['source_id']}\nAbstract: {obj.properties['abstract']}"
+            for obj in response.objects
         ])
-
+        
         return context_str
-
+    
     except Exception as e:
         print(f"Error getting context: {e}")
         return ""

@@ -178,7 +178,32 @@
           *ngFor="let doc of activeEvidence"
           class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-help group"
         >
+          <div
+            *ngIf="doc.filename && doc.filename.startsWith('IMG_')"
+            class="mb-3"
+          >
+            <div
+              class="bg-gray-100 rounded-lg overflow-hidden border border-gray-200"
+            >
+              <img
+                [src]="
+                  'http://localhost:8000/static/figures/' +
+                  doc.filename.replace('IMG_', '')
+                "
+                alt="Chart from paper"
+                class="w-full h-auto object-cover hover:scale-105 transition-transform duration-300 cursor-zoom-in"
+                (error)="doc.filename = undefined"
+              />
+            </div>
+            <div class="text-[10px] text-gray-400 text-center mt-1">
+              Fig 1. Visual Analysis via GPT-4o
+            </div>
+          </div>
+
           <div class="flex items-start gap-3">
+            <div class="mt-1 min-w-[20px] text-lg">
+              {{ doc.title.includes("Figure") ? "📊" : "📑" }}
+            </div>
             <div>
               <h4
                 class="text-sm font-bold text-gray-800 leading-tight mb-2 group-hover:text-blue-600"
@@ -188,7 +213,7 @@
               <p
                 class="text-xs text-gray-600 leading-relaxed font-mono bg-gray-50 p-2 rounded"
               >
-                ...{{ doc.abstract | slice : 0 : 250 }}...
+                ...{{ doc.abstract | slice : 0 : 200 }}...
               </p>
             </div>
           </div>
