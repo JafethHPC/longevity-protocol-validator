@@ -1,6 +1,6 @@
 from typing import TypedDict, Annotated, List
 from langgraph.graph import StateGraph, END, START
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 import operator
 from app.core.config import settings
 from langchain_openai import ChatOpenAI
@@ -15,11 +15,27 @@ llm = ChatOpenAI(model="gpt-4o", temperature=0, api_key=settings.OPENAI_API_KEY)
 
 llm_with_tools = llm.bind_tools(tools)
 
+SYSTEM_PROMPT = """You are an elite Autonomous Researcher.
+Your goal is to provide comprehensive scientific answers backed by data.
+
+STRATEGY:
+1. When a user asks to research a topic, you should ALWAYS try to gather two types of evidence:
+    - Textual Evidence: Use 'research_pubmed' to get abstracts.
+    - Visual Evidence: Use 'research_visuals' to get charts and figures.
+
+2. Execute these tools in parallel if possible.
+3. Once you have the data, synthesize a final answer that cites both the papers and the scientific figures found.
+"""
+
 def reasoner(state: AgentState):
     """
     The Brain: Decides what to do next based on the state.
     """
-    return {"messages": [llm_with_tools.invoke(state["messages"])]}
+    messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
+
+    response = llm_with_tools.invoke(messages)
+
+    return {"messages": [response]}
 
 tool_node = ToolNode(tools)
 
