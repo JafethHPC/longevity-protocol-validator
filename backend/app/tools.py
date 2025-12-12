@@ -4,6 +4,36 @@ from app.ingestion import search_pubmed_ids, fetch_details_batch, ingest_paper_b
 from app.pdf_fetcher import get_pmc_id, download_pdf
 from app.ingest_pdf import process_pdf
 from pathlib import Path
+import concurrent.futures
+
+def process_single_paper(pmid: str, topic: str, save_dir: Path) -> str:
+    """
+    Independent worker function:
+    1. Checks for OA PDF
+    2. Downloads it
+    3. Runs Vision Analysis
+    Returns a success message or None
+    """
+    try:
+        pmc_id = get_pmc_id(pmid)
+        if not pmc_id:
+            return None
+        
+        save_path = str(save_dir / f"{pmid}.pdf")
+
+        if download_pdf(pmc_id, save_path):
+            title = str(pmid)
+            try:
+                process_pdf(save_path, title)
+                return f"Processed {topic} (ID: {pmid})"
+            except Exception as e:
+                print(f"Error processing {pmid}: {e}")
+                return None
+        else:
+            return None
+    except Exception as e:
+        print(f"Error processing {pmid}: {e}")
+        return None
 
 @tool
 def research_pubmed(topic: str) -> str:
@@ -40,33 +70,28 @@ def research_visuals(topic: str) -> str:
     if not ids:
         return "No papers found."
     
-    processed_count = 0
-    max_papers = 3
-    results_summary = []
+    base_path = Path(__file__).parent.parent
+    save_dir = base_path / "static" / "figures"
+    save_dir.mkdir(parents=True, exist_ok=True)
     
-    for pmid in ids:
-        if processed_count >= max_papers:
-            break
-
-        pmc_id = get_pmc_id(pmid)
-
-        if pmc_id:
-            base_path = Path(__file__).parent.parent
-            save_dir = base_path / "static" / "figures"
-            save_dir.mkdir(parents=True, exist_ok=True)
-            save_path = str(save_dir / f"{pmid}.pdf")
-
-            if download_pdf(pmc_id, save_path):
-                title =str(pmid)
-                try:
-                    process_pdf(save_path, title)
-                    processed_count += 1
-                    results_summary.append(f"processed {topic} (ID: {pmid})")
-                except Exception as e:
-                    print(f"Error processing {pmid}: {e}")
+    processed_results = []
     
-    if processed_count == 0:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        future_to_pmid = {
+            executor.submit(process_single_paper, pmid, topic, save_dir): pmid
+            for pmid in ids
+        }
+
+        for future in concurrent.futures.as_completed(future_to_pmid):
+            result = future.result()
+            if result:
+                processed_results.append(result)
+                if len(processed_results) >= 10:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    break
+
+    if len(processed_results) == 0:
         return "I found relevant papers, but none were Open Access (Free PDF) so I could not extract images."
 
-    return f"Success! I have processed {processed_count} papers ({', '.join(results_summary)}), extracted figures, and analyzed them with AI vision."
+    return f"Success! I have processed {len(processed_results)} papers ({', '.join(processed_results)}), extracted figures, and analyzed them with AI vision."
     

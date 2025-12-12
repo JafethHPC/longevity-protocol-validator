@@ -8,7 +8,7 @@ def get_weaviate_client():
     Prioritizes Cloud URL if it exists in settings
     """
     if settings.WEAVIATE_URL:
-        return weaviate.connect_to_wcs(
+        return weaviate.connect_to_weaviate_cloud(
             cluster_url=settings.WEAVIATE_URL,
             auth_credentials=weaviate.auth.AuthApiKey(settings.WEAVIATE_API_KEY),
             headers={"X-OpenAI-Api-Key": settings.OPENAI_API_KEY}

@@ -2,6 +2,7 @@ import requests
 import os
 import xml.etree.ElementTree as ET
 from Bio import Entrez
+import time
 
 Entrez.email = "your_email@example.com"
 
@@ -10,6 +11,7 @@ def get_pmc_id(pmid: str) -> str:
     Converts a standard PubMed ID (PMID) to a PubMed Central ID (PMCID).
     Only PMC papers have free full-text PDFs.
     """
+    time.sleep(1)
     print(f"Converting PMID: {pmid} to PMCID...")
     try:
         handle = Entrez.elink(dbfrom="pubmed", db="pmc", linkname="pubmed_pmc", id=pmid)
@@ -35,11 +37,9 @@ def get_oa_pdf_url(pmc_id: str) -> str:
         response = requests.get(url)
         if response.status_code == 200:
             root = ET.fromstring(response.content)
-            # Look for: <link format="pdf" href="...">
             for link in root.findall(".//link"):
                 if link.get("format") == "pdf":
                     href = link.get("href")
-                    # Ensure we use HTTPS if it returns FTP logic
                     if href.startswith("ftp://"):
                         href = href.replace("ftp://", "https://")
                     return href
@@ -51,7 +51,6 @@ def download_pdf(pmc_id: str, save_path: str):
     """
     Downloads the PDF using the OA API if available, otherwise falls back to web scraping.
     """
-    # 1. Try OA API (Best for bots)
     pdf_url = get_oa_pdf_url(pmc_id)
     
     if not pdf_url:
@@ -72,7 +71,6 @@ def download_pdf(pmc_id: str, save_path: str):
         if response.status_code == 200:
             content_type = response.headers.get("Content-Type", "").lower()
             
-            # Strict check to avoid saving HTML "Challenge" pages as PDF
             if "pdf" not in content_type and "application/octet-stream" not in content_type:
                 print(f"Invalid Content-Type: {content_type}. This is likely a bot challenge page.")
                 return False
