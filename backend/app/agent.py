@@ -5,12 +5,12 @@ import operator
 from app.core.config import settings
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolNode
-from app.tools import research_pubmed
+from app.tools import research_pubmed, research_visuals
 
 class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
 
-tools= [research_pubmed]
+tools= [research_pubmed, research_visuals]
 llm = ChatOpenAI(model="gpt-4o", temperature=0, api_key=settings.OPENAI_API_KEY)
 
 llm_with_tools = llm.bind_tools(tools)

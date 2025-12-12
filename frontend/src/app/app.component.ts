@@ -100,6 +100,7 @@ export class AppComponent {
     this.currentInput = '';
     this.isAgentWorking = true;
 
+    this.messages.push({ role: 'user', text: topic });
     this.messages.push({
       role: 'ai',
       text: 'Thinking... This may take a moment.',
