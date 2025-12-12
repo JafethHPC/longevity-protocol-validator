@@ -5,6 +5,7 @@ from app.pdf_fetcher import get_pmc_id, download_pdf
 from app.ingest_pdf import process_pdf
 from pathlib import Path
 import concurrent.futures
+from app.text_processor import ingest_full_text
 
 def process_single_paper(pmid: str, topic: str, save_dir: Path) -> str:
     """
@@ -25,10 +26,15 @@ def process_single_paper(pmid: str, topic: str, save_dir: Path) -> str:
             title = str(pmid)
             try:
                 process_pdf(save_path, title)
-                return f"Processed {topic} (ID: {pmid})"
             except Exception as e:
                 print(f"Error processing {pmid}: {e}")
                 return None
+            try:
+                ingest_full_text(save_path, pmid, title)
+            except Exception as e:
+                print(f"Error processing {pmid}: {e}")
+                return None
+            return f"Processed {topic} (ID: {pmid})"
         else:
             return None
     except Exception as e:
@@ -79,14 +85,14 @@ def research_visuals(topic: str) -> str:
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         future_to_pmid = {
             executor.submit(process_single_paper, pmid, topic, save_dir): pmid
-            for pmid in ids
+            for pmid in ids[:10]
         }
 
         for future in concurrent.futures.as_completed(future_to_pmid):
             result = future.result()
             if result:
                 processed_results.append(result)
-                if len(processed_results) >= 10:
+                if len(processed_results) >= 10:    
                     executor.shutdown(wait=False, cancel_futures=True)
                     break
 
