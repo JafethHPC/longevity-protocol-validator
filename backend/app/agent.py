@@ -6,6 +6,8 @@ from app.core.config import settings
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolNode
 from app.tools import research_pubmed, research_visuals
+from redis import Redis
+from langgraph.checkpoint.redis import RedisSaver
 
 class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
@@ -43,15 +45,6 @@ def reasoner(state: AgentState):
 
     return {"messages": [response]}
 
-tool_node = ToolNode(tools)
-
-workflow = StateGraph(AgentState)
-
-workflow.add_node("agent", reasoner)
-workflow.add_node("tools", tool_node)
-
-workflow.set_entry_point("agent")
-
 def should_continue(state: AgentState):
     """
     Decides whether to continue or end the conversation.
@@ -63,7 +56,18 @@ def should_continue(state: AgentState):
     else:
         return END
 
+tool_node = ToolNode(tools)
+
+workflow = StateGraph(AgentState)
+workflow.add_node("agent", reasoner)
+workflow.add_node("tools", tool_node)
+
+workflow.set_entry_point("agent")
 workflow.add_conditional_edges("agent", should_continue)
 workflow.add_edge("tools", "agent")
 
-agent_executor = workflow.compile()
+redis_client = Redis(host="localhost", port=6379, db=0)
+checkPointer = RedisSaver(redis_client=redis_client)
+checkPointer.setup()  # Initialize Redis indices
+
+agent_executor = workflow.compile(checkpointer=checkPointer)

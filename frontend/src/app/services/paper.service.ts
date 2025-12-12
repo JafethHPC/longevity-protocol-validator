@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface Paper {
@@ -29,6 +29,7 @@ export interface ChatResponse {
 export class PaperService {
   private http = inject(HttpClient);
   private apiUrl = environment.apiUrl;
+  private currentThreadId: string | null = null;
 
   search(query: string): Observable<Paper[]> {
     return this.http.post<Paper[]>(`${this.apiUrl}/search`, {
@@ -43,9 +44,21 @@ export class PaperService {
     });
   }
 
-  research(topic: string): Observable<{ result: string }> {
-    return this.http.post<{ result: string }>(`${this.apiUrl}/agent/research`, {
+  research(topic: string): Observable<{ result: string; thread_id: string }> {
+    const payload = {
       query: topic,
-    });
+      thread_id: this.currentThreadId,
+    };
+
+    return this.http
+      .post<{ result: string; thread_id: string }>(
+        `${this.apiUrl}/agent/research`,
+        payload
+      )
+      .pipe(
+        tap((response: { result: string; thread_id: string }) => {
+          this.currentThreadId = response.thread_id;
+        })
+      );
   }
 }

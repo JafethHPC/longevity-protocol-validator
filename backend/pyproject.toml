@@ -6,7 +6,7 @@ authors = [
     {name = "Jafeth",email = "132289436+JafethHPC@users.noreply.github.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.11,<4.0"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "fastapi (>=0.121.3,<0.122.0)",
     "uvicorn (>=0.38.0,<0.39.0)",
@@ -22,7 +22,8 @@ dependencies = [
     "pypdf (>=6.4.1,<7.0.0)",
     "pdf2image (>=1.17.0,<2.0.0)",
     "pillow (>=12.0.0,<13.0.0)",
-    "langchain-text-splitters (>=1.0.0,<2.0.0)"
+    "langchain-text-splitters (>=1.0.0,<2.0.0)",
+    "redis (>=7.1.0,<8.0.0)"
 ]
 
 

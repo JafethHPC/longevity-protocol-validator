@@ -1,7 +1,9 @@
+import uuid
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from typing import Optional
 from app.core.config import settings
 from langsmith import Client
 from app.rag import generate_answer
@@ -49,6 +51,7 @@ class PaperResponse(BaseModel):
 
 class AgentRequest(BaseModel):
     query: str
+    thread_id: Optional[str] = None
 
 @app.get("/")
 async def health_check():
@@ -112,13 +115,18 @@ async def agent_research(request: AgentRequest):
     Trigger the Autonomous Researcher
     """
     try:
-        initial_state = {"messages": [HumanMessage(content=request.query)]}
+        thread_id = request.thread_id or str(uuid.uuid4())
 
-        final_state = agent_executor.invoke(initial_state)
+        config = {"configurable": {"thread_id": thread_id}}
+
+        final_state = agent_executor.invoke(
+            {"messages": [HumanMessage(content=request.query)]},
+            config=config
+        )
 
         final_response = final_state["messages"][-1].content
 
-        return {"result": final_response}
+        return {"result": final_response, "thread_id": thread_id}
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

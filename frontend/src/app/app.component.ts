@@ -1,4 +1,10 @@
-import { Component, inject } from '@angular/core';
+import {
+  Component,
+  inject,
+  ViewChild,
+  ElementRef,
+  AfterViewChecked,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatResponse, PaperService } from './services/paper.service';
@@ -23,7 +29,9 @@ interface Evidence {
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
-export class AppComponent {
+export class AppComponent implements AfterViewChecked {
+  @ViewChild('chatContainer') private chatContainer!: ElementRef;
+
   paperService = inject(PaperService);
   activeEvidence: Evidence[] = [];
 
@@ -33,6 +41,21 @@ export class AppComponent {
 
   isResearchMode = false;
   isAgentWorking = false;
+
+  ngAfterViewChecked() {
+    this.scrollToBottom();
+  }
+
+  private scrollToBottom(): void {
+    try {
+      if (this.chatContainer) {
+        this.chatContainer.nativeElement.scrollTop =
+          this.chatContainer.nativeElement.scrollHeight;
+      }
+    } catch (err) {
+      console.error('Scroll error:', err);
+    }
+  }
 
   sendMessage() {
     if (!this.currentInput.trim()) return;
