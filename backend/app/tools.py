@@ -23,7 +23,8 @@ def process_single_paper(pmid: str, topic: str, save_dir: Path) -> str:
         save_path = str(save_dir / f"{pmid}.pdf")
 
         if download_pdf(pmc_id, save_path):
-            title = str(pmid)
+            id = str(pmid)
+            title = f"{topic} (ID: {pmid})"
             try:
                 process_pdf(save_path, title)
             except Exception as e:
