@@ -1,6 +1,7 @@
 from typing import TypedDict, Annotated, List
 from langgraph.graph import StateGraph, END, START
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate
 import operator
 from app.core.config import settings
 from langchain_openai import ChatOpenAI
@@ -8,13 +9,30 @@ from langgraph.prebuilt import ToolNode
 from app.tools import research_pubmed, research_visuals
 from redis import Redis
 from langgraph.checkpoint.redis import RedisSaver
+from pydantic import BaseModel, Field
 
 class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
+    quality: str
+
+class GradeDocuments(BaseModel):
+    """Binary score for relevance check on retrieved documents"""
+    binary_score: str = Field(description="Documents are relevant to the user question, 'yes' or 'no'")
+
+class GradeHallucinations(BaseModel):
+    """Binary score for hallucination check in generation."""
+    binary_score: str = Field(description="Answer is grounded in the facts, 'yes' or 'no'")
+
+class GradeAnswer(BaseModel):
+    """Binary score to check if the question is actually answered."""
+    binary_score: str = Field(description="Answer addresses the user question, 'yes' or 'no'")  
+
+class RewriteQuery(BaseModel):
+    """The new search query."""
+    query: str = Field(description="The improved search query to use")  
 
 tools= [research_pubmed, research_visuals]
 llm = ChatOpenAI(model="gpt-4o", temperature=0, api_key=settings.OPENAI_API_KEY)
-
 llm_with_tools = llm.bind_tools(tools)
 
 SYSTEM_PROMPT = """You are an elite Autonomous Researcher.
@@ -56,18 +74,101 @@ def should_continue(state: AgentState):
     else:
         return END
 
-tool_node = ToolNode(tools)
+def decide_to_generate(state: AgentState):
+    """
+    Determines whether to generate an answer or re-try search.
+    """
+    quality = state.get("quality", "yes")
 
+    if quality == "yes":
+        print("---DECISION: GENERATE ANSWER---")
+        return "agent"
+    else:
+        print("---DECISION: RE-TRY SEARCH---")
+        return "rewrite"
+
+def grading_node(state: AgentState):
+    """
+    Determines if the retrieved documemnts are relevant to the question. 
+    If not, it re-writes the search query.
+    """
+    print("---CHECKING RELEVANCE---")
+    messages = state['messages']
+    last_tool_msg = messages[-1]
+
+    if not isinstance(last_tool_msg, BaseMessage):
+        return {"quality": "yes"}
+    
+    question = messages[0].content
+    documents = last_tool_msg.content
+
+    llm_grader = ChatOpenAI(model="gpt-4o", temperature=0, api_key=settings.OPENAI_API_KEY).with_structured_output(GradeDocuments)
+    
+    system = """You are a grader assessing relevance of a retrieved document to a user question. 
+    If the document contains keyword(s) or semantic meaning related to the question, grade it as relevant. 
+    Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question."""
+
+    grade_prompt = ChatPromptTemplate.from_messages([
+        ("system", system),
+        ("human", f"Retrieved document: \n\n {documents} \n\n User question: {question}"),
+    ])
+
+    grader = grade_prompt | llm_grader
+    score = grader.invoke({})
+
+    print(f"---GRADE: {score.binary_score}---")
+    return {"quality": score.binary_score}
+
+def rewrite_retrieve_node(state: AgentState):
+    """
+    Refines the search query if the inital search yielded irrelevant results.
+    """
+    print("---RE-WRITING SEARCH QUERY---")
+    messages = state['messages']
+    question = messages[0].content
+    
+    llm = ChatOpenAI(model="gpt-4o", temperature=0, api_key=settings.OPENAI_API_KEY)
+
+    structured_llm = llm.with_structured_output(RewriteQuery)
+
+    system = """You are a query re-writer that converts an input question to a better version that is optimized 
+    for searching scientific literature (PubMed/Vector Search). Look at the initial input and try to extract 
+    better keywords or synonyms."""
+
+    re_write_prompt = ChatPromptTemplate.from_messages([
+        ("system", system),
+        ("human", f"Initial Question: {question} \n Formulate an improved search query."),    ])
+
+    chain = re_write_prompt | structured_llm
+    response = chain.invoke({})
+    
+    return {"messages": [HumanMessage(content=response.query)]}
+    
+tool_node = ToolNode(tools)
 workflow = StateGraph(AgentState)
+
 workflow.add_node("agent", reasoner)
 workflow.add_node("tools", tool_node)
+workflow.add_node("grader", grading_node)
+workflow.add_node("rewrite", rewrite_retrieve_node)
 
 workflow.set_entry_point("agent")
+
 workflow.add_conditional_edges("agent", should_continue)
-workflow.add_edge("tools", "agent")
+workflow.add_edge("tools", "grader")
+workflow.add_edge("rewrite", "agent")
+
+workflow.add_conditional_edges(
+    "grader", 
+    decide_to_generate, 
+    {
+        "agent": "agent",
+        "rewrite": "rewrite" 
+    }
+)
 
 redis_client = Redis(host="localhost", port=6379, db=0)
 checkPointer = RedisSaver(redis_client=redis_client)
-checkPointer.setup()  # Initialize Redis indices
+checkPointer.setup() 
 
 agent_executor = workflow.compile(checkpointer=checkPointer)
