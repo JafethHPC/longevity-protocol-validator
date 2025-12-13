@@ -179,14 +179,25 @@
 
         <div
           *ngFor="let doc of activeEvidence"
-          class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-help group"
+          class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 group relative"
         >
           <div
+            class="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full"
+            [ngClass]="
+              doc.title.includes('Figure')
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-blue-100 text-blue-700'
+            "
+          >
+            {{ doc.title.includes("Figure") ? "Visual" : "Text" }}
+          </div>
+
+          <div
             *ngIf="doc.filename && doc.filename.startsWith('IMG_')"
-            class="mb-3"
+            class="mb-3 mt-1"
           >
             <div
-              class="bg-gray-100 rounded-lg overflow-hidden border border-gray-200"
+              class="bg-gray-50 rounded-lg overflow-hidden border border-gray-200"
             >
               <img
                 [src]="
@@ -194,27 +205,63 @@
                   doc.filename.replace('IMG_', '')
                 "
                 alt="Chart from paper"
-                class="w-full h-auto object-cover hover:scale-105 transition-transform duration-300 cursor-zoom-in"
+                class="w-full h-48 object-contain hover:scale-105 transition-transform duration-300 cursor-zoom-in bg-white"
                 (error)="doc.filename = undefined"
               />
-            </div>
-            <div class="text-[10px] text-gray-400 text-center mt-1">
-              Fig 1. Visual Analysis via GPT-4o
             </div>
           </div>
 
           <div class="flex items-start gap-3">
-            <div>
+            <div
+              class="mt-1 min-w-[24px] h-[24px] flex items-center justify-center rounded-full"
+              [ngClass]="
+                doc.title.includes('Figure')
+                  ? 'bg-purple-50 text-purple-600'
+                  : 'bg-blue-50 text-blue-600'
+              "
+            >
+              <span class="text-sm">{{
+                doc.title.includes("Figure") ? "📊" : "📄"
+              }}</span>
+            </div>
+
+            <div class="flex-1">
               <h4
-                class="text-sm font-bold text-gray-800 leading-tight mb-2 group-hover:text-blue-600"
+                class="text-sm font-semibold text-gray-900 leading-snug mb-1 pr-16"
               >
                 {{ doc.title }}
               </h4>
-              <p
-                class="text-xs text-gray-600 leading-relaxed font-mono bg-gray-50 p-2 rounded"
+
+              <a
+                *ngIf="doc.url"
+                [href]="doc.url"
+                target="_blank"
+                class="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:underline mb-2 transition-colors"
               >
-                {{ doc.abstract }}
-              </p>
+                <span>🔗 Read Article</span>
+                <svg
+                  class="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  ></path>
+                </svg>
+              </a>
+
+              <div
+                class="text-xs text-gray-600 leading-relaxed font-mono bg-gray-50 p-2.5 rounded-lg border border-gray-100"
+              >
+                <span class="font-bold text-gray-400 select-none mr-1"
+                  >Exerpt:</span
+                >
+                {{ doc.abstract | slice : 0 : 180 }}...
+              </div>
             </div>
           </div>
         </div>

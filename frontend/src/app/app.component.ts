@@ -20,6 +20,7 @@ interface Evidence {
   title: string;
   abstract: string;
   filename?: string;
+  url?: string;
 }
 
 @Component({
@@ -94,6 +95,8 @@ export class AppComponent implements AfterViewChecked {
     return rawChunks.map((chunk) => {
       const [titlePart, rest1] = chunk.split('Source: ');
 
+      let displayTitle = titlePart ? titlePart.trim() : 'Unknown Source';
+      displayTitle = displayTitle.replace(/\(Chunk \d+\)/, '').trim();
       if (!rest1) {
         const [t, a] = chunk.split('Abstract: ');
         return {
@@ -103,11 +106,31 @@ export class AppComponent implements AfterViewChecked {
       }
 
       const [sourcePart, abstractPart] = rest1.split('Abstract: ');
+      const sourceId = sourcePart ? sourcePart.trim() : '';
+
+      let generatedUrl = undefined;
+
+      const pmcMatch = sourceId.match(/(PMC\d+)/);
+      if (pmcMatch) {
+        generatedUrl = `https://www.ncbi.nlm.nih.gov/pmc/articles/${pmcMatch[1]}/`;
+      } else {
+        let cleanId = sourceId
+          .replace(/^IMG_/, '')
+          .replace(/\.pdf$/i, '')
+          .replace(/\.jpg$/i, '');
+        if (cleanId.includes('_')) {
+          cleanId = cleanId.split('_')[0];
+        }
+        if (/^\d+$/.test(cleanId)) {
+          generatedUrl = `https://pubmed.ncbi.nlm.nih.gov/${cleanId}/`;
+        }
+      }
 
       return {
-        title: titlePart ? titlePart.trim() : 'Unknown Source',
+        title: displayTitle,
         abstract: abstractPart ? abstractPart.trim() : '',
-        filename: sourcePart ? sourcePart.trim() : undefined,
+        filename: sourceId,
+        url: generatedUrl,
       };
     });
   }
