@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from typing import List
 from app.core.config import settings
 from app.core.db import get_weaviate_client
+from flashrank import Ranker, RerankRequest
 
 class ResearchIngestion(BaseModel):
     """
@@ -36,10 +37,14 @@ Question: {question}
 Answer: """
 
 prompt = ChatPromptTemplate.from_template(template)
+ranker = Ranker() 
 
 def get_context(query:str):
     """
     Retrieves the raw text chunks from Weaviate to feed into the AI.
+    Uses Two-Stage Retrieval:
+    1. Vector Search (Broad): Fetch top 50 chunks
+    2. Reranking (precise): Filter for top 10 chunks using Cross-Encoder
     """
     client = get_weaviate_client()
 
@@ -47,12 +52,28 @@ def get_context(query:str):
         papers = client.collections.get("Paper")
         response = papers.query.near_text(
             query=query,
-            limit=20
+            limit=50
         )
+        
+        if not response.objects:
+            return ""
+
+        passages = []
+        for idx, obj in enumerate(response.objects):
+            passages.append({
+                "id": idx,
+                "text": obj.properties.get('abstract', ''),
+                "meta": obj.properties
+            })
+
+        rerank_request = RerankRequest(query=query, passages=passages)
+        reranked_results = ranker.rerank(rerank_request)
+        
+        top_results = reranked_results[:10]
 
         context_str = "\n\n".join([
-            f"Paper: {obj.properties['title']}\nSource: {obj.properties['source_id']}\nAbstract: {obj.properties['abstract']}"
-            for obj in response.objects
+            f"Paper: {res['meta']['title']}\nSource: {res['meta']['source_id']}\nAbstract: {res['text']}"
+            for res in top_results
         ])
         
         return context_str

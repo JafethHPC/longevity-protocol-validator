@@ -3,6 +3,9 @@
 .vscode/
 .idea/
 
+# context dump
+CONTEXT_DUMP.md
+
 # backend
 __pycache__/
 *.py[cod]
@@ -23,3 +26,4 @@ weaviate_data/
 
 # specific generated files
 backend/static/figures/
+
