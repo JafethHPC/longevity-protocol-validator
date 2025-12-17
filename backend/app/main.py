@@ -125,8 +125,13 @@ async def agent_research(request: AgentRequest):
         )
 
         final_response = final_state["messages"][-1].content
+        protocols = final_state.get("protocols", [])
 
-        return {"result": final_response, "thread_id": thread_id}
+        return {
+            "result": final_response, 
+            "protocols": protocols,
+            "thread_id": thread_id
+        }
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
