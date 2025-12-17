@@ -7,6 +7,17 @@ from app.core.config import settings
 from app.core.db import get_weaviate_client
 from flashrank import Ranker, RerankRequest
 
+class ProtocolMetrics(BaseModel):
+    """
+    Structured extraction of a specific scientific protocol found in the papers.
+    """
+    protocol_name: str = Field(description="Name of the intervention/drug (e.g. 'Rapamycin', '17-alpha-estradiol')")
+    species: str = Field(description="Species used in the study (e.g., 'C57BL/6 Mouse', 'Human', 'Wistar Rat')")
+    dosage_amount: str = Field(description="Precise dosage used (e.g., '14 ppm', '5 mg/kg', '1000 mg')")
+    administration_route: str = Field(description="Route of administration (e.g., 'Oral', 'Intraperitoneal Injection', 'Dietary')")
+    sample_size: int = Field(description="Number of subjects in the study (N-value). Use 0 if not explicitly mentioned.")
+    outcome_summary: str = Field(description="Brief summary of the outcome (e.g., 'Median lifespan increased by 14%')")
+
 class ResearchIngestion(BaseModel):
     """
     Structured response for scientific papers
@@ -15,6 +26,7 @@ class ResearchIngestion(BaseModel):
     consensus_points: List[str] = Field(..., description="List of facts that appear to be agreed upon across multiple papers.")
     conflict_points: List[str] = Field(..., description="List of points where papers disagree or where results are inconclusive/contradictory.")
     limitations: str = Field(..., description="A note on what is NOT known or if the papers focus on specific groups (e.g., transplant patients, mice, etc.)")
+    extracted_protocols: List[ProtocolMetrics] = Field(default_factory=list, description="List of specific protocols identified in the papers.")
     
 llm = ChatOpenAI(
     model="gpt-4o",
@@ -25,10 +37,12 @@ llm = ChatOpenAI(
 template = """You are an expert Biologist and Longevity Researcher.
 Analyze the provided context papers to answer the user's question.
 
-Your goal is to identify:
-1. What do the papers agree on? (Consensus)
-2. Where do they disagree or show mixed results? (Conflict)
-3. What are the limitations? (e.g., "mouse only", "small sample size", "short study duration", etc.)
+Your goal is to:
+1. Identify consensus and conflicts.
+2. EXTRACT PRECISE DATA into the 'extracted_protocols' list. 
+   - Look for specific N-values (sample sizes), precise dosages (e.g. '5mg/kg', not 'high dose'), and outcomes.
+   - If a paper mentions multiple protocols (e.g. Low Dose vs High Dose), extract them as separate entries.
+3. Summarize limitations.
 
 Context: {context}
 
@@ -109,6 +123,7 @@ def generate_answer(query: str):
         "consensus": structured_response.consensus_points,
         "conflict": structured_response.conflict_points,
         "limitations": structured_response.limitations,
+        "protocols": [p.dict() for p in structured_response.extracted_protocols],
         "context_used": context_text
     }
     
