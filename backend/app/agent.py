@@ -15,6 +15,26 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
     quality: str
     protocols: Annotated[List[dict], operator.add]
+
+class GradeDocuments(BaseModel):
+    """Binary score for relevance check on retrieved documents"""
+    binary_score: str = Field(description="Documents are relevant to the user question, 'yes' or 'no'")
+
+class GradeHallucinations(BaseModel):
+    """Binary score for hallucination check in generation."""
+    binary_score: str = Field(description="Answer is grounded in the facts, 'yes' or 'no'")
+
+class GradeAnswer(BaseModel):
+    """Binary score to check if the question is actually answered."""
+    binary_score: str = Field(description="Answer addresses the user question, 'yes' or 'no'")  
+
+class RewriteQuery(BaseModel):
+    """The new search query."""
+    query: str = Field(description="The improved search query to use")  
+
+tools= [research_pubmed, research_visuals]
+llm = ChatOpenAI(model="gpt-4o", temperature=0, api_key=settings.OPENAI_API_KEY)
+llm_with_tools = llm.bind_tools(tools)
     
 SYSTEM_PROMPT = """You are an elite Autonomous Researcher.
 Your goal is to provide comprehensive scientific answers backed by data.
@@ -41,12 +61,6 @@ def reasoner(state: AgentState):
     messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
 
     response = llm_with_tools.invoke(messages)
-    
-    # Check if the response contains checking for our specialized tools
-    # If the tool call is for 'research_pubmed' or 'research_visuals', we need to intercept strictly later.
-    # Currently, LangGraph handles tool execution in the 'tools' node (ToolNode).
-    # We need to Upgrade the Tool code itself to return a special artifact, or handle it in the ToolNode.
-    # Custom ToolNode is safer. 
     
     return {"messages": [response]}
 
@@ -128,6 +142,29 @@ def rewrite_retrieve_node(state: AgentState):
 
     chain = re_write_prompt | structured_llm
     response = chain.invoke({})
+
+    return {"messages": [HumanMessage(content=response.query)]}
+
+tool_node = ToolNode(tools)
+workflow = StateGraph(AgentState)
+
+workflow.add_node("agent", reasoner)
+workflow.add_node("tools", tool_node)
+workflow.add_node("grader", grading_node)
+workflow.add_node("rewrite", rewrite_retrieve_node)
+
+workflow.set_entry_point("agent")
+workflow.add_edge("tools", "grader")
+workflow.add_edge("rewrite", "agent")
+
+workflow.add_conditional_edges(
+    "grader", 
+    decide_to_generate, 
+    {
+        "agent": "agent",
+        "rewrite": "rewrite" 
+    }
+)
     
 def answer_gen_node(state: AgentState):
     """
