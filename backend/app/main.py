@@ -96,19 +96,26 @@ async def chat_endpoint(request: AgentRequest):
         thread_id = request.thread_id or str(uuid.uuid4())
 
         config = {"configurable": {"thread_id": thread_id}}
-
         config["recursion_limit"] = 50
+
+        # Get the current state to know how many protocols exist BEFORE this turn
+        current_state = agent_executor.get_state(config)
+        protocols_before = len(current_state.values.get("protocols", [])) if current_state.values else 0
+
         final_state = agent_executor.invoke(
             {"messages": [HumanMessage(content=request.query)]},
             config=config
         )
 
         final_response = final_state["messages"][-1].content
-        protocols = final_state.get("protocols", [])
+        all_protocols = final_state.get("protocols", [])
+        
+        # Only return the NEW protocols added in THIS turn
+        current_turn_protocols = all_protocols[protocols_before:]
 
         return {
             "answer": final_response, 
-            "protocols": protocols,
+            "protocols": current_turn_protocols,
             "thread_id": thread_id
         }
     

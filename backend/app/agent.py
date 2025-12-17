@@ -96,7 +96,13 @@ def grading_node(state: AgentState):
     if not isinstance(last_tool_msg, BaseMessage):
         return {"quality": "yes"}
     
+    # Find the latest user question
     question = messages[0].content
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            question = msg.content
+            break
+
     documents = last_tool_msg.content
 
     llm_grader = ChatOpenAI(model="gpt-4o", temperature=0, api_key=settings.OPENAI_API_KEY).with_structured_output(GradeDocuments)
@@ -122,7 +128,13 @@ def rewrite_retrieve_node(state: AgentState):
     """
     print("---RE-WRITING SEARCH QUERY---")
     messages = state['messages']
+
+    # Find the latest user question
     question = messages[0].content
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            question = msg.content
+            break
     
     llm = ChatOpenAI(model="gpt-4o", temperature=0, api_key=settings.OPENAI_API_KEY)
 
@@ -172,20 +184,33 @@ def answer_gen_node(state: AgentState):
     
     from app.rag import prompt as rag_prompt, llm as rag_llm
     
+    # 1. Provide the query: Find last HumanMessage
+    question = messages[0].content
+    last_human_i = 0
+    for i, msg in enumerate(messages):
+        if isinstance(msg, HumanMessage):
+            question = msg.content
+            last_human_i = i
+
+    # 2. Provide the context: Filter to only include tool outputs from the current turn
+    # i.e., messages occurring AFTER the last HumanMessage
     context_str = ""
-    for msg in messages:
+    recent_messages = messages[last_human_i:]
+    
+    for msg in recent_messages:
         if isinstance(msg, AIMessage) and msg.tool_calls:
             context_str += f"\nAgent Planned: {msg.tool_calls}"
         elif hasattr(msg, "tool_call_id"): # ToolMessage
             context_str += f"\nTool Output: {msg.content}"
     
+    # Fallback if no tool output found in this turn
     if not context_str:
-        context_str = str(messages)
+        context_str = "No new research data found in this turn. Answer based on available history."
 
     chain = rag_prompt | rag_llm
     response = chain.invoke({
         "context": context_str,
-        "question": messages[0].content
+        "question": question
     })
     
     return {
