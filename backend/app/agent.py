@@ -18,15 +18,7 @@ class AgentState(TypedDict):
 
 class GradeDocuments(BaseModel):
     """Binary score for relevance check on retrieved documents"""
-    binary_score: str = Field(description="Documents are relevant to the user question, 'yes' or 'no'")
-
-class GradeHallucinations(BaseModel):
-    """Binary score for hallucination check in generation."""
-    binary_score: str = Field(description="Answer is grounded in the facts, 'yes' or 'no'")
-
-class GradeAnswer(BaseModel):
-    """Binary score to check if the question is actually answered."""
-    binary_score: str = Field(description="Answer addresses the user question, 'yes' or 'no'")  
+    binary_score: str = Field(description="Documents are relevant to the user question, 'yes' or 'no'")  
 
 class RewriteQuery(BaseModel):
     """The new search query."""
@@ -58,9 +50,11 @@ def reasoner(state: AgentState):
     """
     The Brain: Decides what to do next based on the state.
     """
+    print("---AGENT REASONING---")
     messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
 
     response = llm_with_tools.invoke(messages)
+    print(f"---AGENT RESPONSE: {response.content} (Tool Calls: {response.tool_calls})---")
     
     return {"messages": [response]}
 
@@ -71,8 +65,10 @@ def should_continue(state: AgentState):
     last_message = state['messages'][-1]
 
     if last_message.tool_calls:
+        print("---DECISION: CALL TOOLS---")
         return "tools"
     else:
+        print("---DECISION: FINISH---")
         return END
 
 def decide_to_generate(state: AgentState):
@@ -174,10 +170,8 @@ def answer_gen_node(state: AgentState):
     print("---GENERATING FINAL STRUCTURED ANSWER---")
     messages = state['messages']
     
-    # We use the separate RAG chain prompt/model here for the final synthesis
     from app.rag import prompt as rag_prompt, llm as rag_llm
     
-    # We construct a context string from all ToolMessages in history
     context_str = ""
     for msg in messages:
         if isinstance(msg, AIMessage) and msg.tool_calls:
@@ -185,7 +179,6 @@ def answer_gen_node(state: AgentState):
         elif hasattr(msg, "tool_call_id"): # ToolMessage
             context_str += f"\nTool Output: {msg.content}"
     
-    # If no tool context, just use conversation history
     if not context_str:
         context_str = str(messages)
 
@@ -200,11 +193,8 @@ def answer_gen_node(state: AgentState):
         "protocols": [p.dict() for p in response.extracted_protocols]
     }
 
-# Update Workflow
 workflow.add_node("answer_gen", answer_gen_node)
 
-# Update Edges
-# If 'should_continue' returns END, we now go to 'answer_gen' first
 workflow.add_conditional_edges(
     "agent",
     should_continue,

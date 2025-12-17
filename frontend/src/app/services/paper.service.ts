@@ -38,25 +38,21 @@ export class PaperService {
     });
   }
 
-  chat(query: string): Observable<ChatResponse> {
-    return this.http.post<ChatResponse>(`${this.apiUrl}/chat`, {
-      query: query,
-    });
-  }
-
-  research(topic: string): Observable<{ result: string; thread_id: string }> {
+  research(
+    topic: string
+  ): Observable<{ answer: string; protocols: any[]; thread_id: string }> {
     const payload = {
       query: topic,
       thread_id: this.currentThreadId,
     };
 
     return this.http
-      .post<{ result: string; thread_id: string }>(
-        `${this.apiUrl}/agent/research`,
+      .post<{ answer: string; protocols: any[]; thread_id: string }>(
+        `${this.apiUrl}/chat`,
         payload
       )
       .pipe(
-        tap((response: { result: string; thread_id: string }) => {
+        tap((response) => {
           this.currentThreadId = response.thread_id;
         })
       );

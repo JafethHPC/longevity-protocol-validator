@@ -38,52 +38,74 @@
             class="px-6 py-5 rounded-2xl text-base leading-relaxed overflow-hidden max-w-[85%]"
           >
             <div *ngIf="msg.role === 'user'">{{ msg.text }}</div>
-            <div *ngIf="msg.role === 'ai' && msg.data" class="space-y-4">
+            <div *ngIf="msg.role === 'ai'" class="space-y-4">
               <div
                 class="prose text-gray-800"
-                [innerHTML]="msg.data.answer | markdown"
+                [innerHTML]="msg.text || '' | markdown"
               ></div>
+
               <div
-                *ngIf="msg.data.consensus.length > 0"
-                class="bg-green-50 border border-green-100 rounded-lg p-4"
+                *ngIf="msg.protocols && msg.protocols.length > 0"
+                class="mt-4 overflow-hidden rounded-lg border border-gray-200 shadow-sm"
               >
-                <h4
-                  class="text-green-800 font-bold text-sm mb-2 flex items-center gap-2"
-                >
-                  CONSENSUS
-                </h4>
-                <ul class="list-disc pl-4 space-y-1 text-green-900 text-sm">
-                  <li *ngFor="let point of msg.data.consensus">{{ point }}</li>
-                </ul>
-              </div>
-              <div
-                *ngIf="msg.data.conflict.length > 0"
-                class="bg-amber-50 border border-amber-100 rounded-lg p-4"
-              >
-                <h4
-                  class="text-amber-800 font-bold text-sm mb-2 flex items-center gap-2"
-                >
-                  CONFLICT & DEBATE
-                </h4>
-                <ul class="list-disc pl-4 space-y-1 text-amber-900 text-sm">
-                  <li *ngFor="let point of msg.data.conflict">{{ point }}</li>
-                </ul>
-              </div>
-              <div
-                *ngIf="msg.data.limitations"
-                class="border-l-4 border-gray-300 pl-4 py-1 text-gray-500 text-sm italic"
-              >
-                <span class="font-semibold text-gray-600 not-italic"
-                  >Limit of Knowledge:</span
-                >
-                {{ msg.data.limitations }}
+                <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                  <h4
+                    class="text-xs font-bold text-gray-500 uppercase tracking-wider"
+                  >
+                    Extracted Protocols
+                  </h4>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th
+                          class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Protocol
+                        </th>
+                        <th
+                          class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Species
+                        </th>
+                        <th
+                          class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Dosage
+                        </th>
+                        <th
+                          class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Result
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr *ngFor="let p of msg.protocols">
+                        <td class="px-3 py-2 text-xs font-medium text-gray-900">
+                          {{ p.protocol_name }}
+                        </td>
+                        <td class="px-3 py-2 text-xs text-gray-500">
+                          {{ p.species }}
+                        </td>
+                        <td class="px-3 py-2 text-xs text-gray-500">
+                          {{ p.dosage_amount }} ({{ p.administration_route }})
+                        </td>
+                        <td
+                          class="px-3 py-2 text-xs text-gray-500 truncate max-w-[200px]"
+                          [title]="p.outcome_summary"
+                        >
+                          {{ p.outcome_summary }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-            <div *ngIf="msg.role === 'ai' && !msg.data">{{ msg.text }}</div>
           </div>
         </div>
-
-        <!-- Thinking Bubble -->
         <div *ngIf="isLoading" class="flex flex-col items-start fade-in">
           <div
             class="bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-bl-none shadow-sm px-6 py-4 flex items-center gap-1"
@@ -100,54 +122,26 @@
       </div>
 
       <div class="p-6 bg-white border-t border-gray-200">
-        <div class="flex justify-center mb-3">
-          <button
-            (click)="toggleMode()"
-            [class.bg-purple-100]="isResearchMode"
-            [class.text-purple-700]="isResearchMode"
-            [class.bg-gray-100]="!isResearchMode"
-            class="px-4 py-1 cursor-pointer rounded-full text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2"
-          >
-            <span *ngIf="!isResearchMode">💬 Chat Mode</span>
-            <span *ngIf="isResearchMode">🕵️ Research Mode</span>
-            <span class="text-gray-400">| Click to Switch</span>
-          </button>
-        </div>
-
         <div class="relative">
           <input
             type="text"
             [(ngModel)]="currentInput"
-            (keyup.enter)="isResearchMode ? triggerAgent() : sendMessage()"
-            [disabled]="isLoading || isAgentWorking"
-            [placeholder]="
-              isResearchMode
-                ? 'Enter a topic to research (e.g. Ashwagandha)...'
-                : 'Ask a scientific question...'
-            "
-            [class.focus:ring-purple-500]="isResearchMode"
-            [class.focus:border-purple-500]="isResearchMode"
-            class="w-full p-4 pr-16 rounded-xl border border-gray-300 focus:ring-2 outline-none shadow-sm transition-all"
+            (keyup.enter)="sendMessage()"
+            [disabled]="isLoading"
+            placeholder="Ask a scientific question to the agent..."
+            class="w-full p-4 pr-16 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm transition-all"
           />
 
-          <div
-            *ngIf="isLoading || isAgentWorking"
-            class="absolute right-14 top-4 text-gray-400"
-          >
+          <div *ngIf="isLoading" class="absolute right-14 top-4 text-gray-400">
             <div
-              class="animate-spin h-5 w-5 border-2 rounded-full border-t-transparent"
-              [class.border-blue-500]="!isResearchMode"
-              [class.border-purple-500]="isResearchMode"
+              class="animate-spin h-5 w-5 border-2 rounded-full border-t-transparent border-blue-500"
             ></div>
           </div>
 
           <button
-            (click)="isResearchMode ? triggerAgent() : sendMessage()"
-            [disabled]="!currentInput.trim() || isLoading || isAgentWorking"
-            [class.bg-purple-600]="isResearchMode"
-            [class.hover:bg-purple-700]="isResearchMode"
-            [class.bg-blue-600]="!isResearchMode"
-            class="absolute right-2 top-2 bottom-2 text-white px-4 rounded-lg transition-colors disabled:opacity-50"
+            (click)="sendMessage()"
+            [disabled]="!currentInput.trim() || isLoading"
+            class="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-lg transition-colors disabled:opacity-50"
           >
             ➤
           </button>
@@ -212,19 +206,6 @@
           </div>
 
           <div class="flex items-start gap-3">
-            <div
-              class="mt-1 min-w-[24px] h-[24px] flex items-center justify-center rounded-full"
-              [ngClass]="
-                doc.title.includes('Figure')
-                  ? 'bg-purple-50 text-purple-600'
-                  : 'bg-blue-50 text-blue-600'
-              "
-            >
-              <span class="text-sm">{{
-                doc.title.includes("Figure") ? "📊" : "📄"
-              }}</span>
-            </div>
-
             <div class="flex-1">
               <h4
                 class="text-sm font-semibold text-gray-900 leading-snug mb-1 pr-16"
@@ -238,7 +219,7 @@
                 target="_blank"
                 class="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:underline mb-2 transition-colors"
               >
-                <span>🔗 Read Article</span>
+                <span>Read Article</span>
                 <svg
                   class="w-3 h-3"
                   fill="none"
@@ -260,7 +241,7 @@
                 <span class="font-bold text-gray-400 select-none mr-1"
                   >Exerpt:</span
                 >
-                {{ doc.abstract | slice : 0 : 180 }}...
+                {{ doc.abstract }}
               </div>
             </div>
           </div>

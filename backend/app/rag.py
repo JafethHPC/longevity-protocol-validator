@@ -99,31 +99,5 @@ def get_context(query:str):
     finally: 
         client.close()
 
-def generate_answer(query: str):
-    """
-    Generates an answer to the user's question based on the context.
 
-    The full RAG Chain:
-    1. Get Context (Weaviate)
-    2. Format Prompt
-    3. Send to GPT-4o
-    """
-    context_text = get_context(query)
-
-    chain = prompt | llm
-    structured_response = chain.invoke(
-        {
-            "context": context_text,
-            "question": query
-        }
-    )
-
-    return {
-        "answer": structured_response.answer_summary,
-        "consensus": structured_response.consensus_points,
-        "conflict": structured_response.conflict_points,
-        "limitations": structured_response.limitations,
-        "protocols": [p.dict() for p in structured_response.extracted_protocols],
-        "context_used": context_text
-    }
     

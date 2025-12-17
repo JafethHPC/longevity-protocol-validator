@@ -5,8 +5,6 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
 from app.core.config import settings
-from langsmith import Client
-from app.rag import generate_answer
 from app.core.db import get_weaviate_client
 from langchain_core.messages import HumanMessage
 from app.agent import agent_executor
@@ -28,16 +26,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
-
-class ChatRequest(BaseModel):
-    query: str
-
-class ChatResponse(BaseModel):
-    answer: str
-    consensus: list[str]
-    conflict: list[str]
-    limitations: str
-    context_used: str
 
 class SearchRequest(BaseModel):
     query: str
@@ -98,27 +86,18 @@ async def search_papers(request: SearchRequest):
     finally:
         client.close()
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat_with_papers(request: ChatRequest):
+@app.post("/chat")
+async def chat_endpoint(request: AgentRequest):
     """
-    RAG Chat endpoint: Generates an answer based on stored papers.
-    """
-    try: 
-        result = generate_answer(request.query)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
-@app.post("/agent/research")
-async def agent_research(request: AgentRequest):
-    """
-    Trigger the Autonomous Researcher
+    Unified Research Agent Chat Endpoint.
+    Replaces old simple RAG chat.
     """
     try:
         thread_id = request.thread_id or str(uuid.uuid4())
 
         config = {"configurable": {"thread_id": thread_id}}
 
+        config["recursion_limit"] = 50
         final_state = agent_executor.invoke(
             {"messages": [HumanMessage(content=request.query)]},
             config=config
@@ -128,7 +107,7 @@ async def agent_research(request: AgentRequest):
         protocols = final_state.get("protocols", [])
 
         return {
-            "result": final_response, 
+            "answer": final_response, 
             "protocols": protocols,
             "thread_id": thread_id
         }
