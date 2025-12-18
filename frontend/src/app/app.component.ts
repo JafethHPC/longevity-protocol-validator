@@ -1,32 +1,19 @@
-import {
-  Component,
-  inject,
-  ViewChild,
-  ElementRef,
-  AfterViewChecked,
-} from '@angular/core';
+import { Component, inject, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PaperService, StreamEvent } from './services/paper.service';
+import {
+  ReportService,
+  ResearchReport,
+  ReportStreamEvent,
+  Source,
+  Finding,
+  Protocol,
+} from './services/report.service';
 import { MarkdownPipe } from './pipes/markdown.pipe';
 
-interface Source {
-  index: number;
-  title: string;
-  journal: string;
-  year: number;
-  pmid: string;
-  abstract: string;
-  url: string;
-  isExpanded?: boolean;
-}
-
-interface Message {
-  role: 'user' | 'ai';
-  text?: string;
-  protocols?: any[];
-  sources?: Source[];
-  isStreaming?: boolean;
+interface FollowUpMessage {
+  question: string;
+  answer: string;
 }
 
 @Component({
@@ -36,140 +23,144 @@ interface Message {
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
-export class AppComponent implements AfterViewChecked {
-  @ViewChild('chatContainer') private chatContainer!: ElementRef;
+export class AppComponent {
+  @ViewChild('reportContainer') private reportContainer!: ElementRef;
 
-  paperService = inject(PaperService);
+  reportService = inject(ReportService);
 
-  messages: Message[] = [];
+  // UI State
   currentInput = '';
   isLoading = false;
   currentStatus = '';
+  activeTab: 'findings' | 'protocols' | 'sources' = 'findings';
 
-  ngAfterViewChecked() {
-    this.scrollToBottom();
-  }
+  // Report data
+  report: ResearchReport | null = null;
+  followUpMessages: FollowUpMessage[] = [];
+  followUpInput = '';
+  isFollowUpLoading = false;
 
-  private scrollToBottom(): void {
-    try {
-      if (this.chatContainer) {
-        this.chatContainer.nativeElement.scrollTop =
-          this.chatContainer.nativeElement.scrollHeight;
-      }
-    } catch (err) {
-      console.error('Scroll error:', err);
-    }
-  }
+  // Source expansion tracking
+  expandedSources: Set<number> = new Set();
 
-  sendMessage() {
+  generateReport() {
     if (!this.currentInput.trim()) return;
 
-    const userText = this.currentInput;
+    const question = this.currentInput;
     this.currentInput = '';
     this.isLoading = true;
-    this.currentStatus = 'Connecting...';
+    this.currentStatus = 'Searching scientific databases...';
+    this.report = null;
+    this.followUpMessages = [];
 
-    this.messages.push({ role: 'user', text: userText });
-
-    let aiMessage: Message | null = null;
-    let pendingSources: Source[] = [];
-
-    const stream = this.paperService.researchStream(userText);
+    const stream = this.reportService.generateReport(question);
 
     stream.subscribe({
-      next: (event: StreamEvent) => {
+      next: (event: ReportStreamEvent) => {
         switch (event.type) {
           case 'status':
             this.currentStatus = event.data.message;
             break;
 
-          case 'sources':
-            if (event.data.sources) {
-              pendingSources = [...pendingSources, ...event.data.sources];
-            }
-            break;
-
-          case 'token':
-            if (!aiMessage) {
-              aiMessage = {
-                role: 'ai',
-                text: event.data.text,
-                protocols: [],
-                sources: pendingSources,
-                isStreaming: true,
-              };
-              this.messages.push(aiMessage);
-            } else {
-              aiMessage.text = event.data.text;
-              aiMessage.sources = pendingSources;
-            }
-            break;
-
-          case 'protocols':
-            if (aiMessage) {
-              aiMessage.protocols = event.data.protocols;
-            }
+          case 'report':
+            this.report = event.data;
+            this.currentStatus = 'Report generated!';
             break;
 
           case 'complete':
-            if (aiMessage) {
-              aiMessage.isStreaming = false;
-            }
             this.isLoading = false;
             this.currentStatus = '';
             break;
 
           case 'error':
-            if (!aiMessage) {
-              aiMessage = {
-                role: 'ai',
-                text: `Error: ${event.data.message}`,
-                protocols: [],
-                isStreaming: false,
-              };
-              this.messages.push(aiMessage);
-            } else {
-              aiMessage.text = `Error: ${event.data.message}`;
-              aiMessage.isStreaming = false;
-            }
             this.isLoading = false;
-            this.currentStatus = '';
+            this.currentStatus = `Error: ${event.data.message}`;
             break;
         }
       },
       error: (err) => {
-        if (!aiMessage) {
-          aiMessage = {
-            role: 'ai',
-            text: 'An error occurred while processing your request.',
-            protocols: [],
-            isStreaming: false,
-          };
-          this.messages.push(aiMessage);
-        } else {
-          aiMessage.text = 'An error occurred while processing your request.';
-          aiMessage.isStreaming = false;
-        }
         this.isLoading = false;
-        this.currentStatus = '';
-        console.error('Stream error:', err);
+        this.currentStatus = 'An error occurred while generating the report.';
+        console.error('Report generation error:', err);
       },
       complete: () => {
-        if (aiMessage) {
-          aiMessage.isStreaming = false;
-        }
         this.isLoading = false;
-        this.currentStatus = '';
       },
     });
   }
 
-  newChat() {
-    this.messages = [];
-    this.paperService.resetThread();
+  askFollowUp() {
+    if (!this.followUpInput.trim() || !this.report) return;
+
+    const question = this.followUpInput;
+    this.followUpInput = '';
+    this.isFollowUpLoading = true;
+
+    this.reportService.askFollowUp(question).subscribe({
+      next: (response) => {
+        this.followUpMessages.push({
+          question: response.question,
+          answer: response.answer,
+        });
+        this.isFollowUpLoading = false;
+      },
+      error: (err) => {
+        this.followUpMessages.push({
+          question: question,
+          answer: 'Error: Could not process follow-up question.',
+        });
+        this.isFollowUpLoading = false;
+        console.error('Follow-up error:', err);
+      },
+    });
   }
 
-  toggleSource(source: Source) {
-    source.isExpanded = !source.isExpanded;
+  newReport() {
+    this.report = null;
+    this.followUpMessages = [];
+    this.expandedSources = new Set();
+    this.reportService.resetReport();
+  }
+
+  toggleSource(index: number) {
+    if (this.expandedSources.has(index)) {
+      this.expandedSources.delete(index);
+    } else {
+      this.expandedSources.add(index);
+    }
+  }
+
+  isSourceExpanded(index: number): boolean {
+    return this.expandedSources.has(index);
+  }
+
+  getConfidenceColor(confidence: string): string {
+    switch (confidence.toLowerCase()) {
+      case 'high':
+        return 'text-emerald-600';
+      case 'medium':
+        return 'text-amber-600';
+      case 'low':
+        return 'text-red-600';
+      default:
+        return 'text-stone-600';
+    }
+  }
+
+  getConfidenceBadge(confidence: string): string {
+    switch (confidence.toLowerCase()) {
+      case 'high':
+        return 'bg-emerald-100 text-emerald-800';
+      case 'medium':
+        return 'bg-amber-100 text-amber-800';
+      case 'low':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-stone-100 text-stone-800';
+    }
+  }
+
+  formatSourceIndices(indices: number[]): string {
+    return indices.map((i) => `[${i}]`).join(' ');
   }
 }

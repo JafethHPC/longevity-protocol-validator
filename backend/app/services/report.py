@@ -1,0 +1,272 @@
+"""
+Report Generation Service
+
+Generates structured research reports from retrieved papers.
+"""
+
+import uuid
+from typing import List, Dict, Optional
+from datetime import datetime
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
+
+from app.core.config import settings
+from app.models.report import (
+    ResearchReport, Source, Finding, Protocol
+)
+from app.services.retrieval import enhanced_retrieval
+from app.services.ingestion import ingest_paper_batch
+
+
+class FindingItem(BaseModel):
+    """A single finding item"""
+    statement: str = Field(description="The key finding or conclusion")
+    source_indices: List[int] = Field(description="Paper indices supporting this finding")
+    confidence: str = Field(description="low, medium, or high")
+
+
+class ProtocolItem(BaseModel):
+    """A single protocol item"""
+    name: str = Field(description="Name of the intervention/protocol")
+    species: str = Field(description="Human, Mouse, Rat, etc.")
+    dosage: str = Field(description="Specific dosage")
+    frequency: Optional[str] = Field(default=None, description="How often")
+    duration: Optional[str] = Field(default=None, description="Duration of intervention")
+    result: str = Field(description="The outcome/effect")
+    source_index: int = Field(description="Paper number it came from")
+
+
+class ReportFindings(BaseModel):
+    """Structured output for report generation"""
+    executive_summary: str = Field(description="2-3 sentence summary of the key findings")
+    key_findings: List[FindingItem] = Field(description="List of key findings")
+    detailed_analysis: str = Field(description="Comprehensive analysis with inline citations like [1], [2]")
+    limitations: str = Field(description="Limitations of the evidence and gaps in the research")
+
+
+class ExtractedProtocols(BaseModel):
+    """Structured output for protocol extraction"""
+    protocols: List[ProtocolItem] = Field(description="List of extracted protocols")
+
+
+def generate_report(question: str, max_sources: int = 10) -> ResearchReport:
+    """
+    Generate a complete research report for a given question.
+    
+    Steps:
+    1. Retrieve relevant papers using enhanced retrieval
+    2. Generate structured findings from papers
+    3. Extract protocols
+    4. Compile into report
+    """
+    print(f"\n{'='*60}")
+    print(f"GENERATING REPORT: {question}")
+    print(f"{'='*60}\n")
+    
+    # 1. Retrieve papers
+    papers = enhanced_retrieval(question, max_final_papers=max_sources)
+    
+    if not papers:
+        return ResearchReport(
+            id=str(uuid.uuid4()),
+            question=question,
+            executive_summary="No relevant research papers were found for this question.",
+            key_findings=[],
+            detailed_analysis="Unable to provide analysis due to lack of relevant sources.",
+            protocols=[],
+            limitations="No papers were retrieved from the scientific databases.",
+            sources=[],
+            total_papers_searched=0,
+            papers_used=0
+        )
+    
+    # Ingest papers into Weaviate for future RAG
+    papers_for_ingest = [{
+        "title": p['title'],
+        "abstract": p['abstract'],
+        "journal": p.get('journal', ''),
+        "year": p.get('year', 0),
+        "source_id": p.get('pmid', '')
+    } for p in papers]
+    ingest_paper_batch(papers_for_ingest)
+    
+    # Convert papers to Source objects
+    sources = [
+        Source(
+            index=i + 1,
+            title=p['title'],
+            journal=p.get('journal', ''),
+            year=p.get('year', 0),
+            pmid=p.get('pmid', ''),
+            abstract=p['abstract'][:500] + "..." if len(p['abstract']) > 500 else p['abstract'],
+            url=p.get('url', f"https://pubmed.ncbi.nlm.nih.gov/{p.get('pmid', '')}/"),
+            citation_count=p.get('citation_count', 0),
+            relevance_reason=p.get('relevance_reason')
+        )
+        for i, p in enumerate(papers)
+    ]
+    
+    # 2. Build context for LLM
+    context = _build_context(papers)
+    
+    # 3. Generate findings
+    findings_data = _generate_findings(question, context)
+    
+    # 4. Extract protocols
+    protocols_data = _extract_protocols(question, context)
+    
+    # 5. Compile report
+    key_findings = [
+        Finding(
+            statement=f.statement,
+            source_indices=f.source_indices,
+            confidence=f.confidence
+        )
+        for f in findings_data.key_findings
+    ]
+    
+    protocols = [
+        Protocol(
+            name=p.name,
+            species=p.species,
+            dosage=p.dosage,
+            frequency=p.frequency,
+            duration=p.duration,
+            result=p.result,
+            source_index=p.source_index
+        )
+        for p in protocols_data.protocols
+    ]
+    
+    report = ResearchReport(
+        id=str(uuid.uuid4()),
+        question=question,
+        executive_summary=findings_data.executive_summary,
+        key_findings=key_findings,
+        detailed_analysis=findings_data.detailed_analysis,
+        protocols=protocols,
+        limitations=findings_data.limitations,
+        sources=sources,
+        total_papers_searched=len(papers) * 5,  # Approximate
+        papers_used=len(papers)
+    )
+    
+    print(f"\n---REPORT GENERATED---")
+    print(f"  Sources: {len(sources)}")
+    print(f"  Findings: {len(key_findings)}")
+    print(f"  Protocols: {len(protocols)}")
+    
+    return report
+
+
+def _build_context(papers: List[Dict]) -> str:
+    """Build context string from papers for LLM."""
+    context_parts = []
+    for i, paper in enumerate(papers, 1):
+        context_parts.append(f"""
+[Paper {i}]
+Title: {paper['title']}
+Journal: {paper.get('journal', 'N/A')} ({paper.get('year', 'N/A')})
+Abstract: {paper['abstract']}
+""")
+    return "\n".join(context_parts)
+
+
+def _generate_findings(question: str, context: str) -> ReportFindings:
+    """Generate structured findings from papers."""
+    print("---GENERATING FINDINGS---")
+    
+    llm = ChatOpenAI(
+        model="gpt-4o",
+        temperature=0,
+        api_key=settings.OPENAI_API_KEY
+    ).with_structured_output(ReportFindings, strict=False)
+    
+    prompt = f"""You are a scientific research analyst. Based on the following research papers, generate a comprehensive report answering the question.
+
+IMPORTANT RULES:
+1. ONLY use information explicitly stated in the papers
+2. Use inline citations like [1], [2] referring to paper numbers
+3. If papers don't fully answer the question, acknowledge this
+4. Rate confidence based on: number of supporting studies, study quality, consistency of findings
+
+QUESTION: {question}
+
+RESEARCH PAPERS:
+{context}
+
+Generate a structured report with:
+- Executive summary (2-3 sentences)
+- Key findings (each with source indices and confidence level)
+- Detailed analysis (comprehensive with inline citations)
+- Limitations of the evidence"""
+
+    return llm.invoke(prompt)
+
+
+def _extract_protocols(question: str, context: str) -> ExtractedProtocols:
+    """Extract protocols/interventions from papers."""
+    print("---EXTRACTING PROTOCOLS---")
+    
+    llm = ChatOpenAI(
+        model="gpt-4o",
+        temperature=0,
+        api_key=settings.OPENAI_API_KEY
+    ).with_structured_output(ExtractedProtocols, strict=False)
+    
+    prompt = f"""Extract all specific protocols, interventions, or dosages mentioned in these research papers.
+
+For each protocol, extract:
+- name: Name of the intervention/protocol
+- species: Human, Mouse, Rat, etc.
+- dosage: Specific dosage if mentioned
+- frequency: How often (if mentioned)
+- duration: Duration of intervention (if mentioned)
+- result: The outcome/effect
+- source_index: Which paper number it came from
+
+Only extract protocols with specific, actionable information. Skip vague recommendations.
+
+QUESTION CONTEXT: {question}
+
+RESEARCH PAPERS:
+{context}"""
+
+    return llm.invoke(prompt)
+
+
+def generate_followup_answer(report: ResearchReport, followup_question: str) -> str:
+    """Answer a follow-up question using the report's sources."""
+    print(f"---ANSWERING FOLLOW-UP: {followup_question}---")
+    
+    llm = ChatOpenAI(
+        model="gpt-4o",
+        temperature=0,
+        api_key=settings.OPENAI_API_KEY
+    )
+    
+    sources_context = "\n\n".join([
+        f"[{s.index}] {s.title}\n{s.abstract}"
+        for s in report.sources
+    ])
+    
+    prompt = f"""Based on the research sources from a previous report, answer this follow-up question.
+
+ORIGINAL QUESTION: {report.question}
+
+EXECUTIVE SUMMARY FROM REPORT:
+{report.executive_summary}
+
+AVAILABLE SOURCES:
+{sources_context}
+
+FOLLOW-UP QUESTION: {followup_question}
+
+RULES:
+1. Only use information from the provided sources
+2. Use inline citations [1], [2], etc.
+3. If the sources don't contain relevant information, say so clearly
+4. Be concise but comprehensive"""
+
+    response = llm.invoke(prompt)
+    return response.content
