@@ -1,23 +1,23 @@
-<div class="h-screen bg-gray-50 flex flex-col overflow-hidden">
+<div class="h-screen bg-stone-200 flex flex-col overflow-hidden">
   <header
-    class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm z-10"
+    class="bg-stone-100 border-b border-stone-300 px-6 py-4 flex items-center justify-between shadow-sm z-10"
   >
     <div class="flex items-center gap-2">
       <div
-        class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold"
+        class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold"
       >
         L
       </div>
-      <h1 class="text-xl font-bold text-gray-800">Longevity Validator</h1>
+      <h1 class="text-xl font-bold text-stone-800">Longevity Validator</h1>
     </div>
-    <div class="text-sm text-gray-500 font-mono">MVP v2.1</div>
+    <div class="text-sm text-stone-500 font-mono">MVP v2.1</div>
   </header>
 
   <div class="flex-1 flex flex-col overflow-hidden min-h-0">
-    <div class="flex-1 flex flex-col bg-white h-full overflow-hidden">
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
       <div
         #chatContainer
-        class="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50"
+        class="flex-1 overflow-y-auto p-6 space-y-6 bg-stone-200"
       >
         <div
           *ngFor="let msg of messages"
@@ -30,8 +30,8 @@
           <div
             *ngIf="!(msg.role === 'ai' && msg.isStreaming && !msg.text)"
             [ngClass]="{
-              'bg-blue-600 text-white rounded-br-none': msg.role === 'user',
-              'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm':
+              'bg-emerald-500 text-white rounded-br-none': msg.role === 'user',
+              'bg-stone-50 border border-stone-300 text-stone-800 rounded-bl-none shadow-sm':
                 msg.role === 'ai'
             }"
             class="px-6 py-5 rounded-2xl text-base leading-relaxed overflow-hidden max-w-[85%]"
@@ -39,60 +39,62 @@
             <div *ngIf="msg.role === 'user'">{{ msg.text }}</div>
             <div *ngIf="msg.role === 'ai'" class="space-y-4">
               <div
-                class="prose prose-sm max-w-none text-gray-800"
+                class="prose prose-sm max-w-none text-stone-800 prose-headings:text-stone-900 prose-a:text-emerald-600"
                 [innerHTML]="msg.text || '' | markdown"
               ></div>
 
               <div
                 *ngIf="msg.protocols && msg.protocols.length > 0"
-                class="mt-4 overflow-hidden rounded-lg border border-gray-200 shadow-sm"
+                class="mt-4 overflow-hidden rounded-lg border border-stone-300 shadow-sm"
               >
-                <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                <div class="bg-stone-100 px-4 py-2 border-b border-stone-300">
                   <h4
-                    class="text-xs font-bold text-gray-500 uppercase tracking-wider"
+                    class="text-xs font-bold text-stone-600 uppercase tracking-wider"
                   >
                     Extracted Protocols
                   </h4>
                 </div>
                 <div class="overflow-x-auto">
-                  <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                  <table class="min-w-full divide-y divide-stone-200">
+                    <thead class="bg-stone-100">
                       <tr>
                         <th
-                          class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          class="px-3 py-2 text-left text-xs font-medium text-stone-600 uppercase tracking-wider"
                         >
                           Protocol
                         </th>
                         <th
-                          class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          class="px-3 py-2 text-left text-xs font-medium text-stone-600 uppercase tracking-wider"
                         >
                           Species
                         </th>
                         <th
-                          class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          class="px-3 py-2 text-left text-xs font-medium text-stone-600 uppercase tracking-wider"
                         >
                           Dosage
                         </th>
                         <th
-                          class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          class="px-3 py-2 text-left text-xs font-medium text-stone-600 uppercase tracking-wider"
                         >
                           Result
                         </th>
                       </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="bg-stone-50 divide-y divide-stone-200">
                       <tr *ngFor="let p of msg.protocols">
-                        <td class="px-3 py-2 text-xs font-medium text-gray-900">
+                        <td
+                          class="px-3 py-2 text-xs font-medium text-stone-900"
+                        >
                           {{ p.protocol_name }}
                         </td>
-                        <td class="px-3 py-2 text-xs text-gray-500">
+                        <td class="px-3 py-2 text-xs text-stone-600">
                           {{ p.species }}
                         </td>
-                        <td class="px-3 py-2 text-xs text-gray-500">
+                        <td class="px-3 py-2 text-xs text-stone-600">
                           {{ p.dosage_amount }} ({{ p.administration_route }})
                         </td>
                         <td
-                          class="px-3 py-2 text-xs text-gray-500 truncate max-w-[200px]"
+                          class="px-3 py-2 text-xs text-stone-600 truncate max-w-[200px]"
                           [title]="p.outcome_summary"
                         >
                           {{ p.outcome_summary }}
@@ -109,12 +111,12 @@
               >
                 <div class="flex items-center gap-2 mb-2">
                   <span
-                    class="text-xs font-bold text-gray-500 uppercase tracking-wider"
+                    class="text-xs font-bold text-stone-600 uppercase tracking-wider"
                   >
                     Sources Used
                   </span>
                   <span
-                    class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"
+                    class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full"
                   >
                     {{ msg.sources.length }}
                   </span>
@@ -122,42 +124,42 @@
 
                 <div
                   *ngFor="let source of msg.sources"
-                  class="border border-gray-200 rounded-lg overflow-hidden bg-gray-50"
+                  class="border border-stone-300 rounded-lg overflow-hidden bg-stone-100"
                 >
                   <button
                     (click)="toggleSource(source)"
-                    class="w-full px-4 py-3 text-left flex items-start justify-between hover:bg-gray-100 transition-colors"
+                    class="w-full px-4 py-3 text-left flex items-start justify-between hover:bg-stone-200 transition-colors"
                   >
                     <div class="flex-1 pr-4">
                       <div class="flex items-center gap-2 mb-1">
-                        <span class="text-xs font-bold text-blue-600"
+                        <span class="text-xs font-bold text-emerald-600"
                           >[{{ source.index }}]</span
                         >
                         <span
-                          class="text-sm font-semibold text-gray-800 leading-tight"
+                          class="text-sm font-semibold text-stone-800 leading-tight"
                           >{{ source.title }}</span
                         >
                       </div>
-                      <div class="text-xs text-gray-500">
+                      <div class="text-xs text-stone-500">
                         {{ source.journal }} ({{ source.year }}) |
                         <a
                           [href]="source.url"
                           target="_blank"
                           (click)="$event.stopPropagation()"
-                          class="text-blue-600 hover:underline"
+                          class="text-emerald-600 hover:underline"
                           >PMID: {{ source.pmid }}</a
                         >
                       </div>
                     </div>
-                    <span class="text-gray-400 text-sm mt-1">{{
+                    <span class="text-stone-400 text-sm mt-1">{{
                       source.isExpanded ? "−" : "+"
                     }}</span>
                   </button>
                   <div
                     *ngIf="source.isExpanded"
-                    class="px-4 pb-3 pt-0 border-t border-gray-200 bg-white"
+                    class="px-4 pb-3 pt-0 border-t border-stone-300 bg-stone-50"
                   >
-                    <p class="text-xs text-gray-600 leading-relaxed">
+                    <p class="text-xs text-stone-600 leading-relaxed">
                       {{ source.abstract }}
                     </p>
                   </div>
@@ -171,27 +173,27 @@
           class="flex flex-col items-start fade-in"
         >
           <div
-            class="bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-bl-none shadow-sm px-6 py-4 flex items-center gap-3"
+            class="bg-stone-50 border border-stone-300 text-stone-800 rounded-2xl rounded-bl-none shadow-sm px-6 py-4 flex items-center gap-3"
           >
             <div class="flex items-center gap-1">
               <div
-                class="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"
+                class="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.3s]"
               ></div>
               <div
-                class="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"
+                class="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.15s]"
               ></div>
               <div
-                class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                class="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"
               ></div>
             </div>
-            <span class="text-sm text-gray-600 font-medium">{{
+            <span class="text-sm text-stone-600 font-medium">{{
               currentStatus
             }}</span>
           </div>
         </div>
       </div>
 
-      <div class="p-6 bg-white border-t border-gray-200">
+      <div class="p-6 bg-stone-100 border-t border-stone-300">
         <div class="relative">
           <input
             type="text"
@@ -199,21 +201,21 @@
             (keyup.enter)="sendMessage()"
             [disabled]="isLoading"
             placeholder="Ask a scientific question to the agent..."
-            class="w-full p-4 pr-16 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm transition-all"
+            class="w-full p-4 pr-16 rounded-xl border border-stone-300 bg-stone-50 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none shadow-sm transition-all text-stone-800 placeholder-stone-400"
           />
 
-          <div *ngIf="isLoading" class="absolute right-14 top-4 text-gray-400">
+          <div *ngIf="isLoading" class="absolute right-14 top-4 text-stone-400">
             <div
-              class="animate-spin h-5 w-5 border-2 rounded-full border-t-transparent border-blue-500"
+              class="animate-spin h-5 w-5 border-2 rounded-full border-t-transparent border-emerald-500"
             ></div>
           </div>
 
           <button
             (click)="sendMessage()"
             [disabled]="!currentInput.trim() || isLoading"
-            class="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-lg transition-colors disabled:opacity-50"
+            class="absolute right-2 top-2 bottom-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 rounded-lg transition-colors disabled:opacity-50"
           >
-            ➤
+            Send
           </button>
         </div>
       </div>
