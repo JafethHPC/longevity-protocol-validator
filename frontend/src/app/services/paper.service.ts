@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, Subject } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface Paper {
@@ -21,6 +21,11 @@ export interface ChatResponse {
   conflict: string[];
   limitations: string;
   context_used: string;
+}
+
+export interface StreamEvent {
+  type: 'status' | 'token' | 'protocols' | 'complete' | 'error';
+  data: any;
 }
 
 @Injectable({
@@ -56,5 +61,58 @@ export class PaperService {
           this.currentThreadId = response.thread_id;
         })
       );
+  }
+
+  researchStream(topic: string): Subject<StreamEvent> {
+    const subject = new Subject<StreamEvent>();
+
+    const threadParam = this.currentThreadId
+      ? `&thread_id=${this.currentThreadId}`
+      : '';
+    const url = `${this.apiUrl}/chat/stream?query=${encodeURIComponent(
+      topic
+    )}${threadParam}`;
+
+    const eventSource = new EventSource(url);
+
+    eventSource.addEventListener('status', (event: MessageEvent) => {
+      subject.next({ type: 'status', data: JSON.parse(event.data) });
+    });
+
+    eventSource.addEventListener('token', (event: MessageEvent) => {
+      subject.next({ type: 'token', data: JSON.parse(event.data) });
+    });
+
+    eventSource.addEventListener('protocols', (event: MessageEvent) => {
+      subject.next({ type: 'protocols', data: JSON.parse(event.data) });
+    });
+
+    eventSource.addEventListener('complete', (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      this.currentThreadId = data.thread_id;
+      subject.next({ type: 'complete', data });
+      eventSource.close();
+      subject.complete();
+    });
+
+    eventSource.addEventListener('error', (event: MessageEvent) => {
+      if (event.data) {
+        subject.next({ type: 'error', data: JSON.parse(event.data) });
+      }
+      eventSource.close();
+      subject.complete();
+    });
+
+    eventSource.onerror = () => {
+      subject.next({ type: 'error', data: { message: 'Connection lost' } });
+      eventSource.close();
+      subject.complete();
+    };
+
+    return subject;
+  }
+
+  resetThread(): void {
+    this.currentThreadId = null;
   }
 }

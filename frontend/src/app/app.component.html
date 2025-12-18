@@ -30,6 +30,7 @@
           }"
         >
           <div
+            *ngIf="!(msg.role === 'ai' && msg.isStreaming && !msg.text)"
             [ngClass]="{
               'bg-blue-600 text-white rounded-br-none': msg.role === 'user',
               'bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm':
@@ -106,17 +107,27 @@
             </div>
           </div>
         </div>
-        <div *ngIf="isLoading" class="flex flex-col items-start fade-in">
+        <div
+          *ngIf="isLoading && currentStatus"
+          class="flex flex-col items-start fade-in"
+        >
           <div
-            class="bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-bl-none shadow-sm px-6 py-4 flex items-center gap-1"
+            class="bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-bl-none shadow-sm px-6 py-4 flex items-center gap-3"
           >
-            <div
-              class="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"
-            ></div>
-            <div
-              class="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"
-            ></div>
-            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+            <div class="flex items-center gap-1">
+              <div
+                class="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"
+              ></div>
+              <div
+                class="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"
+              ></div>
+              <div
+                class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+              ></div>
+            </div>
+            <span class="text-sm text-gray-600 font-medium">{{
+              currentStatus
+            }}</span>
           </div>
         </div>
       </div>

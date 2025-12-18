@@ -7,13 +7,14 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PaperService } from './services/paper.service';
+import { PaperService, StreamEvent } from './services/paper.service';
 import { MarkdownPipe } from './pipes/markdown.pipe';
 
 interface Message {
   role: 'user' | 'ai';
   text?: string;
   protocols?: any[];
+  isStreaming?: boolean;
 }
 
 interface Evidence {
@@ -39,6 +40,7 @@ export class AppComponent implements AfterViewChecked {
   messages: Message[] = [];
   currentInput = '';
   isLoading = false;
+  currentStatus = '';
 
   ngAfterViewChecked() {
     this.scrollToBottom();
@@ -61,27 +63,67 @@ export class AppComponent implements AfterViewChecked {
     const userText = this.currentInput;
     this.currentInput = '';
     this.isLoading = true;
+    this.currentStatus = 'Connecting...';
 
     this.messages.push({ role: 'user', text: userText });
 
-    this.paperService.research(userText).subscribe({
-      next: (response: any) => {
-        this.isLoading = false;
+    const aiMessage: Message = {
+      role: 'ai',
+      text: '',
+      protocols: [],
+      isStreaming: true,
+    };
+    this.messages.push(aiMessage);
 
-        this.messages.push({
-          role: 'ai',
-          text: response.answer,
-          protocols: response.protocols,
-        });
+    const stream = this.paperService.researchStream(userText);
+
+    stream.subscribe({
+      next: (event: StreamEvent) => {
+        switch (event.type) {
+          case 'status':
+            this.currentStatus = event.data.message;
+            break;
+
+          case 'token':
+            aiMessage.text = event.data.text;
+            break;
+
+          case 'protocols':
+            aiMessage.protocols = event.data.protocols;
+            break;
+
+          case 'complete':
+            aiMessage.isStreaming = false;
+            this.isLoading = false;
+            this.currentStatus = '';
+            break;
+
+          case 'error':
+            aiMessage.text = `Error: ${event.data.message}`;
+            aiMessage.isStreaming = false;
+            this.isLoading = false;
+            this.currentStatus = '';
+            break;
+        }
       },
-      error: (error: any) => {
+      error: (err) => {
+        aiMessage.text = 'An error occurred while processing your request.';
+        aiMessage.isStreaming = false;
         this.isLoading = false;
-        this.messages.push({
-          role: 'ai',
-          text: 'An error occurred while processing your request.',
-        });
-        console.error('Error:', error);
+        this.currentStatus = '';
+        console.error('Stream error:', err);
+      },
+      complete: () => {
+        aiMessage.isStreaming = false;
+        this.isLoading = false;
+        this.currentStatus = '';
       },
     });
+  }
+
+  newChat() {
+    this.messages = [];
+    this.activeEvidence = [];
+    this.paperService.resetThread();
   }
 }
