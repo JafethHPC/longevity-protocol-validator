@@ -59,6 +59,7 @@ def research_pubmed(topic: str) -> str:
 
     Use this tool when the user asks about a topic you don't have context for.
     """
+    import json
     
     ids = search_pubmed_ids(topic, max_results=5)
 
@@ -73,6 +74,7 @@ def research_pubmed(topic: str) -> str:
     ingest_paper_batch(papers)
     
     result_parts = [f"Found and stored {len(papers)} papers about '{topic}':\n"]
+    sources = []
     
     for i, paper in enumerate(papers, 1):
         result_parts.append(f"\n--- Paper {i} ---")
@@ -83,6 +85,19 @@ def research_pubmed(topic: str) -> str:
         if len(abstract) > 1500:
             abstract = abstract[:1500] + "..."
         result_parts.append(f"Abstract: {abstract}")
+        
+        sources.append({
+            "index": i,
+            "title": paper['title'],
+            "journal": paper['journal'],
+            "year": paper['year'],
+            "pmid": paper['source_id'],
+            "abstract": paper['abstract'][:500] + "..." if len(paper['abstract']) > 500 else paper['abstract'],
+            "url": f"https://pubmed.ncbi.nlm.nih.gov/{paper['source_id']}/"
+        })
+    
+    sources_json = json.dumps(sources).replace("{", "{{").replace("}", "}}")
+    result_parts.append(f"\n\n[SOURCES_JSON]{sources_json}[/SOURCES_JSON]")
     
     return "\n".join(result_parts)
 

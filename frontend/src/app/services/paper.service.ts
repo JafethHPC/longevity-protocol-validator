@@ -16,7 +16,7 @@ export interface SearchRequest {
 }
 
 export interface StreamEvent {
-  type: 'status' | 'token' | 'protocols' | 'complete' | 'error';
+  type: 'status' | 'token' | 'protocols' | 'sources' | 'complete' | 'error';
   data: any;
 }
 
@@ -57,6 +57,10 @@ export class PaperService {
 
     eventSource.addEventListener('protocols', (event: MessageEvent) => {
       subject.next({ type: 'protocols', data: JSON.parse(event.data) });
+    });
+
+    eventSource.addEventListener('sources', (event: MessageEvent) => {
+      subject.next({ type: 'sources', data: JSON.parse(event.data) });
     });
 
     eventSource.addEventListener('complete', (event: MessageEvent) => {

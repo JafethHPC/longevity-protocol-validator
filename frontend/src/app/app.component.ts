@@ -10,18 +10,23 @@ import { FormsModule } from '@angular/forms';
 import { PaperService, StreamEvent } from './services/paper.service';
 import { MarkdownPipe } from './pipes/markdown.pipe';
 
+interface Source {
+  index: number;
+  title: string;
+  journal: string;
+  year: number;
+  pmid: string;
+  abstract: string;
+  url: string;
+  isExpanded?: boolean;
+}
+
 interface Message {
   role: 'user' | 'ai';
   text?: string;
   protocols?: any[];
+  sources?: Source[];
   isStreaming?: boolean;
-}
-
-interface Evidence {
-  title: string;
-  abstract: string;
-  filename?: string;
-  url?: string;
 }
 
 @Component({
@@ -35,7 +40,6 @@ export class AppComponent implements AfterViewChecked {
   @ViewChild('chatContainer') private chatContainer!: ElementRef;
 
   paperService = inject(PaperService);
-  activeEvidence: Evidence[] = [];
 
   messages: Message[] = [];
   currentInput = '';
@@ -68,6 +72,7 @@ export class AppComponent implements AfterViewChecked {
     this.messages.push({ role: 'user', text: userText });
 
     let aiMessage: Message | null = null;
+    let pendingSources: Source[] = [];
 
     const stream = this.paperService.researchStream(userText);
 
@@ -78,17 +83,25 @@ export class AppComponent implements AfterViewChecked {
             this.currentStatus = event.data.message;
             break;
 
+          case 'sources':
+            if (event.data.sources) {
+              pendingSources = [...pendingSources, ...event.data.sources];
+            }
+            break;
+
           case 'token':
             if (!aiMessage) {
               aiMessage = {
                 role: 'ai',
                 text: event.data.text,
                 protocols: [],
+                sources: pendingSources,
                 isStreaming: true,
               };
               this.messages.push(aiMessage);
             } else {
               aiMessage.text = event.data.text;
+              aiMessage.sources = pendingSources;
             }
             break;
 
@@ -153,7 +166,10 @@ export class AppComponent implements AfterViewChecked {
 
   newChat() {
     this.messages = [];
-    this.activeEvidence = [];
     this.paperService.resetThread();
+  }
+
+  toggleSource(source: Source) {
+    source.isExpanded = !source.isExpanded;
   }
 }

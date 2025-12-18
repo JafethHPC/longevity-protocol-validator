@@ -15,6 +15,7 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
     quality: str
     protocols: Annotated[List[dict], operator.add]
+    sources: Annotated[List[dict], operator.add]
     hallucination_score: str
     context_for_verification: str
 
@@ -160,11 +161,35 @@ def rewrite_retrieve_node(state: AgentState):
 
     return {"messages": [HumanMessage(content=response.query)]}
 
-tool_node = ToolNode(tools)
+base_tool_node = ToolNode(tools)
+
+def tools_with_source_extraction(state: AgentState):
+    import json
+    import re
+    
+    result = base_tool_node.invoke(state)
+    
+    extracted_sources = []
+    
+    if "messages" in result:
+        for msg in result["messages"]:
+            if hasattr(msg, "content") and msg.content:
+                match = re.search(r'\[SOURCES_JSON\](.*?)\[/SOURCES_JSON\]', msg.content, re.DOTALL)
+                if match:
+                    try:
+                        json_str = match.group(1).replace("{{", "{").replace("}}", "}")
+                        sources = json.loads(json_str)
+                        extracted_sources.extend(sources)
+                    except json.JSONDecodeError:
+                        pass
+    
+    result["sources"] = extracted_sources
+    return result
+
 workflow = StateGraph(AgentState)
 
 workflow.add_node("agent", reasoner)
-workflow.add_node("tools", tool_node)
+workflow.add_node("tools", tools_with_source_extraction)
 workflow.add_node("grader", grading_node)
 workflow.add_node("rewrite", rewrite_retrieve_node)
 

@@ -108,6 +108,7 @@ async def chat_stream(
             final_answer = ""
             pending_answer = ""
             pending_protocols = []
+            accumulated_sources = []
             current_node = ""
             hallucination_passed = False
 
@@ -131,6 +132,13 @@ async def chat_stream(
                         
                         yield f"event: status\ndata: {json.dumps({'step': node_name, 'message': status_msg})}\n\n"
                         await asyncio.sleep(0.01)
+
+                    if node_name == "tools" and "sources" in node_output:
+                        new_sources = node_output["sources"]
+                        if new_sources:
+                            accumulated_sources.extend(new_sources)
+                            yield f"event: sources\ndata: {json.dumps({'sources': new_sources})}\n\n"
+                            await asyncio.sleep(0.01)
 
                     if node_name == "answer_gen" and "messages" in node_output:
                         for msg in node_output["messages"]:
