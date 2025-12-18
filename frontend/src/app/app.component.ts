@@ -67,13 +67,7 @@ export class AppComponent implements AfterViewChecked {
 
     this.messages.push({ role: 'user', text: userText });
 
-    const aiMessage: Message = {
-      role: 'ai',
-      text: '',
-      protocols: [],
-      isStreaming: true,
-    };
-    this.messages.push(aiMessage);
+    let aiMessage: Message | null = null;
 
     const stream = this.paperService.researchStream(userText);
 
@@ -85,36 +79,72 @@ export class AppComponent implements AfterViewChecked {
             break;
 
           case 'token':
-            aiMessage.text = event.data.text;
+            if (!aiMessage) {
+              aiMessage = {
+                role: 'ai',
+                text: event.data.text,
+                protocols: [],
+                isStreaming: true,
+              };
+              this.messages.push(aiMessage);
+            } else {
+              aiMessage.text = event.data.text;
+            }
             break;
 
           case 'protocols':
-            aiMessage.protocols = event.data.protocols;
+            if (aiMessage) {
+              aiMessage.protocols = event.data.protocols;
+            }
             break;
 
           case 'complete':
-            aiMessage.isStreaming = false;
+            if (aiMessage) {
+              aiMessage.isStreaming = false;
+            }
             this.isLoading = false;
             this.currentStatus = '';
             break;
 
           case 'error':
-            aiMessage.text = `Error: ${event.data.message}`;
-            aiMessage.isStreaming = false;
+            if (!aiMessage) {
+              aiMessage = {
+                role: 'ai',
+                text: `Error: ${event.data.message}`,
+                protocols: [],
+                isStreaming: false,
+              };
+              this.messages.push(aiMessage);
+            } else {
+              aiMessage.text = `Error: ${event.data.message}`;
+              aiMessage.isStreaming = false;
+            }
             this.isLoading = false;
             this.currentStatus = '';
             break;
         }
       },
       error: (err) => {
-        aiMessage.text = 'An error occurred while processing your request.';
-        aiMessage.isStreaming = false;
+        if (!aiMessage) {
+          aiMessage = {
+            role: 'ai',
+            text: 'An error occurred while processing your request.',
+            protocols: [],
+            isStreaming: false,
+          };
+          this.messages.push(aiMessage);
+        } else {
+          aiMessage.text = 'An error occurred while processing your request.';
+          aiMessage.isStreaming = false;
+        }
         this.isLoading = false;
         this.currentStatus = '';
         console.error('Stream error:', err);
       },
       complete: () => {
-        aiMessage.isStreaming = false;
+        if (aiMessage) {
+          aiMessage.isStreaming = false;
+        }
         this.isLoading = false;
         this.currentStatus = '';
       },

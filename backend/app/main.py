@@ -106,7 +106,10 @@ async def chat_stream(
             protocols_before = len(current_state.values.get("protocols", [])) if current_state.values else 0
 
             final_answer = ""
+            pending_answer = ""
+            pending_protocols = []
             current_node = ""
+            hallucination_passed = False
 
             for event in agent_executor.stream(
                 {"messages": [HumanMessage(content=query)]},
@@ -121,7 +124,9 @@ async def chat_stream(
                             "tools": "Executing research tools...",
                             "grader": "Grading document relevance...",
                             "rewrite": "Refining search query...",
-                            "answer_gen": "Generating final answer..."
+                            "answer_gen": "Generating final answer...",
+                            "hallucination_check": "Verifying answer accuracy...",
+                            "regenerate": "Refining answer for accuracy..."
                         }.get(node_name, f"Processing {node_name}...")
                         
                         yield f"event: status\ndata: {json.dumps({'step': node_name, 'message': status_msg})}\n\n"
@@ -130,14 +135,32 @@ async def chat_stream(
                     if node_name == "answer_gen" and "messages" in node_output:
                         for msg in node_output["messages"]:
                             if hasattr(msg, "content") and msg.content:
+                                pending_answer = msg.content
+                    
+                    if node_name == "answer_gen" and "protocols" in node_output:
+                        pending_protocols = node_output["protocols"]
+
+                    if node_name == "hallucination_check":
+                        score = node_output.get("hallucination_score", "no")
+                        if score.lower() == "yes":
+                            hallucination_passed = True
+                            if pending_answer:
+                                final_answer = pending_answer
+                                yield f"event: token\ndata: {json.dumps({'text': pending_answer})}\n\n"
+                                await asyncio.sleep(0.01)
+                            if pending_protocols:
+                                yield f"event: protocols\ndata: {json.dumps({'protocols': pending_protocols})}\n\n"
+                                await asyncio.sleep(0.01)
+
+                    if node_name == "regenerate" and "messages" in node_output:
+                        for msg in node_output["messages"]:
+                            if hasattr(msg, "content") and msg.content:
                                 final_answer = msg.content
                                 yield f"event: token\ndata: {json.dumps({'text': msg.content})}\n\n"
                                 await asyncio.sleep(0.01)
-
-                    if "protocols" in node_output and node_output["protocols"]:
-                        new_protocols = node_output["protocols"]
-                        yield f"event: protocols\ndata: {json.dumps({'protocols': new_protocols})}\n\n"
-                        await asyncio.sleep(0.01)
+                        if pending_protocols:
+                            yield f"event: protocols\ndata: {json.dumps({'protocols': pending_protocols})}\n\n"
+                            await asyncio.sleep(0.01)
 
             yield f"event: complete\ndata: {json.dumps({'thread_id': thread_id})}\n\n"
 
