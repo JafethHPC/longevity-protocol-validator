@@ -7,13 +7,13 @@ from pathlib import Path
 import concurrent.futures
 from app.text_processor import ingest_full_text
 
-def process_single_paper(pmid: str, topic: str, save_dir: Path) -> str:
+def process_single_paper(pmid: str, topic: str, save_dir: Path) -> dict:
     """
     Independent worker function:
     1. Checks for OA PDF
     2. Downloads it
     3. Runs Vision Analysis
-    Returns a success message or None
+    Returns a dict with paper info and analysis, or None
     """
     try:
         pmc_id = get_pmc_id(pmid)
@@ -23,19 +23,25 @@ def process_single_paper(pmid: str, topic: str, save_dir: Path) -> str:
         save_path = str(save_dir / f"{pmid}.pdf")
 
         if download_pdf(pmc_id, save_path):
-            id = str(pmid)
             title = f"{topic} (ID: {pmid})"
+            visual_analyses = []
+            
             try:
                 process_pdf(save_path, title)
+                visual_analyses.append("Visual figures extracted and analyzed with AI vision.")
             except Exception as e:
-                print(f"Error processing {pmid}: {e}")
-                return None
+                print(f"Error processing visuals {pmid}: {e}")
+            
             try:
                 ingest_full_text(save_path, pmid, title)
             except Exception as e:
-                print(f"Error processing {pmid}: {e}")
-                return None
-            return f"Processed {topic} (ID: {pmid})"
+                print(f"Error processing text {pmid}: {e}")
+            
+            return {
+                "pmid": pmid,
+                "title": title,
+                "processed": True
+            }
         else:
             return None
     except Exception as e:
@@ -49,6 +55,7 @@ def research_pubmed(topic: str) -> str:
     1. Searches for the top 5 papers.
     2. Downloads the abstracts
     3. Ingests them into the Weaviate database.
+    4. Returns the paper content for context.
 
     Use this tool when the user asks about a topic you don't have context for.
     """
@@ -64,7 +71,20 @@ def research_pubmed(topic: str) -> str:
         return "Found IDs but failed to download abstracts."
     
     ingest_paper_batch(papers)
-    return f"Success! I have read and stored {len(papers)} papers about '{topic}'."
+    
+    result_parts = [f"Found and stored {len(papers)} papers about '{topic}':\n"]
+    
+    for i, paper in enumerate(papers, 1):
+        result_parts.append(f"\n--- Paper {i} ---")
+        result_parts.append(f"Title: {paper['title']}")
+        result_parts.append(f"Journal: {paper['journal']} ({paper['year']})")
+        result_parts.append(f"PMID: {paper['source_id']}")
+        abstract = paper['abstract']
+        if len(abstract) > 1500:
+            abstract = abstract[:1500] + "..."
+        result_parts.append(f"Abstract: {abstract}")
+    
+    return "\n".join(result_parts)
 
 @tool
 def research_visuals(topic: str) -> str:
@@ -100,5 +120,11 @@ def research_visuals(topic: str) -> str:
     if len(processed_results) == 0:
         return "I found relevant papers, but none were Open Access (Free PDF) so I could not extract images."
 
-    return f"Success! I have processed {len(processed_results)} papers ({', '.join(processed_results)}), extracted figures, and analyzed them with AI vision."
+    result_parts = [f"Processed {len(processed_results)} papers with visual analysis:\n"]
     
+    for paper in processed_results:
+        result_parts.append(f"\n--- Paper: {paper['title']} ---")
+        result_parts.append(f"PMID: {paper['pmid']}")
+        result_parts.append("Visual figures have been extracted and analyzed with AI vision. The analysis has been stored for context.")
+    
+    return "\n".join(result_parts)

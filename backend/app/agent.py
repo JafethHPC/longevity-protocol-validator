@@ -191,38 +191,23 @@ def answer_gen_node(state: AgentState):
     
     from app.rag import prompt as rag_prompt, llm as rag_llm
     
-    # 1. Provide the query: Find last HumanMessage
     question = messages[0].content
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
             question = msg.content
             break
 
-    # 2. Gather context for answer generation and verification
-    # The tools only return short "Success!" messages, but the agent LLM has the full context
-    # So we also capture the agent's last AIMessage which contains the synthesized research
     context_str = ""
     agent_reasoning = ""
     
-    print(f"---TOTAL MESSAGES: {len(messages)}---")
-    for i, msg in enumerate(messages):
-        msg_type = type(msg).__name__
-        has_tool_id = hasattr(msg, "tool_call_id")
-        print(f"---MSG {i}: {msg_type}, has tool_call_id: {has_tool_id}---")
-        if has_tool_id:  # ToolMessage
-            content_preview = msg.content[:200] if len(msg.content) > 200 else msg.content
-            print(f"---TOOL CONTENT PREVIEW: {content_preview}---")
+    for msg in messages:
+        if hasattr(msg, "tool_call_id"):
             context_str += f"\nTool Output: {msg.content}"
         elif isinstance(msg, AIMessage) and not msg.tool_calls and msg.content:
-            # Capture the agent's detailed reasoning/synthesis (the last AIMessage without tool calls)
             agent_reasoning = msg.content
     
-    # If tools only returned short success messages, use the agent's reasoning as additional context
     if agent_reasoning and len(context_str) < 500:
-        print(f"---TOOL OUTPUTS TOO SHORT, ADDING AGENT REASONING ({len(agent_reasoning)} chars)---")
         context_str += f"\n\nAgent's Research Summary:\n{agent_reasoning}"
-    
-    print(f"---CONTEXT GATHERED: {len(context_str)} chars---")
     
     if not context_str:
         context_str = "No new research data found in this turn. Answer based on available history."
@@ -248,15 +233,12 @@ def hallucination_check_node(state: AgentState):
     messages = state['messages']
     context = state.get('context_for_verification', '')
     
-    print(f"---CONTEXT LENGTH: {len(context)} chars---")
     if not context:
-        print("---WARNING: No context found, reconstructing from messages---")
         for msg in messages:
             if hasattr(msg, "tool_call_id"):
                 context += f"\nTool Output: {msg.content}"
     
     last_answer = messages[-1].content if messages else ""
-    print(f"---ANSWER TO CHECK: {last_answer[:100]}...---")
     
     llm_grader = ChatOpenAI(
         model="gpt-4o", 
