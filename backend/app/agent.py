@@ -216,26 +216,30 @@ def answer_gen_node(state: AgentState):
     
     from app.rag import prompt as rag_prompt, llm as rag_llm
     
-    question = messages[0].content
+    # Get the most recent human message as the current question
+    question = None
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
             question = msg.content
             break
+    
+    if not question:
+        question = messages[0].content if messages else "No question found"
 
+    # Only use tool outputs from the CURRENT turn (after the last human message)
     context_str = ""
-    agent_reasoning = ""
+    found_human = False
     
-    for msg in messages:
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            found_human = True
+            break
         if hasattr(msg, "tool_call_id"):
-            context_str += f"\nTool Output: {msg.content}"
-        elif isinstance(msg, AIMessage) and not msg.tool_calls and msg.content:
-            agent_reasoning = msg.content
-    
-    if agent_reasoning and len(context_str) < 500:
-        context_str += f"\n\nAgent's Research Summary:\n{agent_reasoning}"
+            # Prepend so we get chronological order
+            context_str = f"\nTool Output: {msg.content}" + context_str
     
     if not context_str:
-        context_str = "No new research data found in this turn. Answer based on available history."
+        context_str = "No research data was retrieved for this query."
 
     chain = rag_prompt | rag_llm
     response = chain.invoke({

@@ -51,36 +51,50 @@ def process_single_paper(pmid: str, topic: str, save_dir: Path) -> dict:
 @tool
 def research_pubmed(topic: str) -> str:
     """
-    Research a scientific topic on PubMed.
-    1. Searches for the top 5 papers.
-    2. Downloads the abstracts
-    3. Ingests them into the Weaviate database.
-    4. Returns the paper content for context.
+    Research a scientific topic using enhanced multi-source retrieval.
+    1. Optimizes the search query for better results
+    2. Searches PubMed and Semantic Scholar
+    3. Ranks papers by semantic relevance
+    4. Filters to the most relevant papers using AI
+    5. Returns the paper content for context.
 
     Use this tool when the user asks about a topic you don't have context for.
     """
     import json
+    from app.enhanced_retrieval import enhanced_retrieval
+    from app.ingestion import ingest_paper_batch
     
-    ids = search_pubmed_ids(topic, max_results=5)
-
-    if not ids:
-        return f"I searched PubMed for '{topic}' but found no papers."
+    # Use enhanced retrieval to get relevant papers
+    papers = enhanced_retrieval(topic, max_final_papers=8)
     
-    papers = fetch_details_batch(ids)
-
     if not papers:
-        return "Found IDs but failed to download abstracts."
+        return f"I searched multiple scientific databases for '{topic}' but found no relevant papers."
     
-    ingest_paper_batch(papers)
+    # Convert to format expected by ingest_paper_batch
+    papers_for_ingest = []
+    for paper in papers:
+        papers_for_ingest.append({
+            "title": paper['title'],
+            "abstract": paper['abstract'],
+            "journal": paper.get('journal', ''),
+            "year": paper.get('year', 0),
+            "source_id": paper.get('pmid', '')
+        })
     
-    result_parts = [f"Found and stored {len(papers)} papers about '{topic}':\n"]
+    # Ingest papers into Weaviate for RAG
+    ingest_paper_batch(papers_for_ingest)
+    
+    result_parts = [f"Found and analyzed {len(papers)} relevant papers about '{topic}':\n"]
     sources = []
     
     for i, paper in enumerate(papers, 1):
         result_parts.append(f"\n--- Paper {i} ---")
         result_parts.append(f"Title: {paper['title']}")
-        result_parts.append(f"Journal: {paper['journal']} ({paper['year']})")
-        result_parts.append(f"PMID: {paper['source_id']}")
+        result_parts.append(f"Journal: {paper.get('journal', 'N/A')} ({paper.get('year', 'N/A')})")
+        result_parts.append(f"PMID: {paper.get('pmid', 'N/A')}")
+        result_parts.append(f"Citations: {paper.get('citation_count', 0)}")
+        if paper.get('relevance_reason'):
+            result_parts.append(f"Relevance: {paper['relevance_reason']}")
         abstract = paper['abstract']
         if len(abstract) > 1500:
             abstract = abstract[:1500] + "..."
@@ -89,11 +103,11 @@ def research_pubmed(topic: str) -> str:
         sources.append({
             "index": i,
             "title": paper['title'],
-            "journal": paper['journal'],
-            "year": paper['year'],
-            "pmid": paper['source_id'],
+            "journal": paper.get('journal', ''),
+            "year": paper.get('year', 0),
+            "pmid": paper.get('pmid', ''),
             "abstract": paper['abstract'][:500] + "..." if len(paper['abstract']) > 500 else paper['abstract'],
-            "url": f"https://pubmed.ncbi.nlm.nih.gov/{paper['source_id']}/"
+            "url": paper.get('url', f"https://pubmed.ncbi.nlm.nih.gov/{paper.get('pmid', '')}/")
         })
     
     sources_json = json.dumps(sources).replace("{", "{{").replace("}", "}}")
