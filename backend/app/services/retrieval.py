@@ -1,7 +1,7 @@
 """
 Enhanced Multi-Source Retrieval System
 
-This module provides improved paper retrieval by:
+Provides improved paper retrieval by:
 1. Optimizing search queries for each source
 2. Fetching from multiple sources (PubMed, Semantic Scholar)
 3. Ranking by semantic similarity + citation count
@@ -10,7 +10,7 @@ This module provides improved paper retrieval by:
 
 import requests
 import time
-from typing import List, Dict, Optional
+from typing import List, Dict
 from Bio import Entrez
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic import BaseModel, Field
@@ -23,10 +23,6 @@ ssl._create_default_https_context = ssl._create_unverified_context
 Entrez.email = "researcher@example.com"
 
 
-# ============================================================
-# 1. QUERY OPTIMIZATION
-# ============================================================
-
 class OptimizedQueries(BaseModel):
     """Structured output for query optimization"""
     pubmed_query: str = Field(description="Optimized query for PubMed with MeSH terms and boolean operators")
@@ -34,10 +30,14 @@ class OptimizedQueries(BaseModel):
     key_concepts: List[str] = Field(description="Key scientific concepts from the query")
 
 
+class PaperRelevance(BaseModel):
+    """Relevance assessment for a single paper"""
+    is_relevant: bool = Field(description="Whether this paper is relevant to answering the question")
+    reason: str = Field(description="Brief reason for the relevance decision")
+
+
 def optimize_query(user_query: str) -> OptimizedQueries:
-    """
-    Use GPT to convert user question into optimized search queries.
-    """
+    """Convert user question into optimized search queries for PubMed and Semantic Scholar."""
     llm = ChatOpenAI(
         model="gpt-4o-mini", 
         temperature=0, 
@@ -71,21 +71,16 @@ Extract the main scientific concepts (3-5 key terms including any specific value
     return result
 
 
-# ============================================================
-# 2. MULTI-SOURCE RETRIEVAL
-# ============================================================
-
 def search_pubmed(query: str, max_results: int = 50) -> List[Dict]:
     """Search PubMed and return papers with metadata."""
     print(f"---SEARCHING PUBMED: {query[:50]}...---")
     
     try:
-        # Search for IDs
         handle = Entrez.esearch(
             db="pubmed", 
             term=query, 
             retmax=max_results,
-            sort="relevance"  # Use relevance sorting
+            sort="relevance"
         )
         record = Entrez.read(handle)
         handle.close()
@@ -97,7 +92,6 @@ def search_pubmed(query: str, max_results: int = 50) -> List[Dict]:
         
         print(f"  Found {len(ids)} papers")
         
-        # Fetch details
         handle = Entrez.efetch(db="pubmed", id=",".join(ids), retmode="xml")
         records = Entrez.read(handle)
         handle.close()
@@ -112,7 +106,6 @@ def search_pubmed(query: str, max_results: int = 50) -> List[Dict]:
                 if not abstract or len(abstract) < 100:
                     continue
                 
-                # Check if it's a review (these are often more useful)
                 pub_types = article.get('PublicationTypeList', [])
                 pub_type_names = [str(pt) for pt in pub_types]
                 is_review = any('review' in pt.lower() for pt in pub_type_names)
@@ -125,7 +118,7 @@ def search_pubmed(query: str, max_results: int = 50) -> List[Dict]:
                     "pmid": str(paper['MedlineCitation']['PMID']),
                     "source": "PubMed",
                     "is_review": is_review,
-                    "citation_count": 0,  # Will be updated if available
+                    "citation_count": 0,
                     "url": f"https://pubmed.ncbi.nlm.nih.gov/{paper['MedlineCitation']['PMID']}/"
                 })
             except (KeyError, TypeError):
@@ -146,7 +139,7 @@ def search_semantic_scholar(query: str, max_results: int = 50) -> List[Dict]:
     url = "https://api.semanticscholar.org/graph/v1/paper/search"
     params = {
         "query": query,
-        "limit": min(max_results, 100),  # API limit
+        "limit": min(max_results, 100),
         "fields": "title,abstract,year,citationCount,journal,externalIds,publicationTypes"
     }
     
@@ -172,7 +165,6 @@ def search_semantic_scholar(query: str, max_results: int = 50) -> List[Dict]:
             
             pub_types = paper.get("publicationTypes", []) or []
             is_review = "Review" in pub_types
-            
             pmid = paper.get("externalIds", {}).get("PubMed", "")
             
             papers.append({
@@ -201,9 +193,7 @@ def deduplicate_papers(papers: List[Dict]) -> List[Dict]:
     unique_papers = []
     
     for paper in papers:
-        # Normalize title for comparison
         title_key = paper['title'].lower().strip()[:60]
-        
         if title_key not in seen_titles:
             seen_titles.add(title_key)
             unique_papers.append(paper)
@@ -211,15 +201,8 @@ def deduplicate_papers(papers: List[Dict]) -> List[Dict]:
     return unique_papers
 
 
-# ============================================================
-# 3. RELEVANCE RANKING (Embedding-based)
-# ============================================================
-
 def rank_by_relevance(papers: List[Dict], query: str, top_k: int = 20) -> List[Dict]:
-    """
-    Rank papers by semantic similarity to the query + citation count.
-    Uses OpenAI embeddings for similarity scoring.
-    """
+    """Rank papers by semantic similarity to the query + citation count."""
     if not papers:
         return []
     
@@ -227,34 +210,22 @@ def rank_by_relevance(papers: List[Dict], query: str, top_k: int = 20) -> List[D
     
     embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY)
     
-    # Get query embedding
     query_embedding = embeddings.embed_query(query)
-    
-    # Get paper embeddings (using title + abstract snippet)
-    paper_texts = [
-        f"{p['title']}. {p['abstract'][:500]}" 
-        for p in papers
-    ]
+    paper_texts = [f"{p['title']}. {p['abstract'][:500]}" for p in papers]
     paper_embeddings = embeddings.embed_documents(paper_texts)
     
-    # Calculate similarity scores
     query_vec = np.array(query_embedding)
     
     for i, paper in enumerate(papers):
         paper_vec = np.array(paper_embeddings[i])
-        
-        # Cosine similarity
         similarity = np.dot(query_vec, paper_vec) / (
             np.linalg.norm(query_vec) * np.linalg.norm(paper_vec)
         )
         
-        # Composite score: similarity + citation boost + review boost
-        citation_boost = min(paper['citation_count'] / 1000, 0.2)  # Max 20% boost
+        citation_boost = min(paper['citation_count'] / 1000, 0.2)
         review_boost = 0.1 if paper['is_review'] else 0
-        
         paper['relevance_score'] = similarity + citation_boost + review_boost
     
-    # Sort by relevance score
     ranked = sorted(papers, key=lambda x: x['relevance_score'], reverse=True)
     
     print(f"  Top 5 after ranking:")
@@ -264,21 +235,8 @@ def rank_by_relevance(papers: List[Dict], query: str, top_k: int = 20) -> List[D
     return ranked[:top_k]
 
 
-# ============================================================
-# 4. LLM RELEVANCE FILTER
-# ============================================================
-
-class PaperRelevance(BaseModel):
-    """Relevance assessment for a single paper."""
-    is_relevant: bool = Field(description="Whether this paper is relevant to answering the question")
-    reason: str = Field(description="Brief reason for the relevance decision")
-
-
 def filter_by_llm_relevance(papers: List[Dict], user_query: str, max_papers: int = 10) -> List[Dict]:
-    """
-    Use LLM to filter papers based on actual relevance to the question.
-    This is the final, precise filtering step.
-    """
+    """Use LLM to filter papers based on actual relevance to the question."""
     if len(papers) <= max_papers:
         return papers
     
@@ -317,15 +275,11 @@ Be inclusive - if there's useful related information, mark as relevant."""
                 
         except Exception as e:
             print(f"  Error evaluating paper: {e}")
-            relevant_papers.append(paper)  # Include on error
+            relevant_papers.append(paper)
     
     print(f"  Filtered to {len(relevant_papers)} relevant papers")
     return relevant_papers
 
-
-# ============================================================
-# MAIN RETRIEVAL FUNCTION
-# ============================================================
 
 def enhanced_retrieval(user_query: str, max_final_papers: int = 10) -> List[Dict]:
     """
@@ -340,18 +294,11 @@ def enhanced_retrieval(user_query: str, max_final_papers: int = 10) -> List[Dict
     print(f"ENHANCED RETRIEVAL: {user_query}")
     print(f"{'='*60}\n")
     
-    # 1. Optimize query
     optimized = optimize_query(user_query)
     
-    # 2. Multi-source retrieval
-    # Primary PubMed search with optimized query
     pubmed_papers = search_pubmed(optimized.pubmed_query, max_results=50)
-    
-    # Secondary PubMed search with key concepts (catches different papers)
     concept_query = " AND ".join(optimized.key_concepts[:3])
     pubmed_papers_2 = search_pubmed(concept_query, max_results=30)
-    
-    # Semantic Scholar search
     semantic_papers = search_semantic_scholar(optimized.semantic_query, max_results=50)
     
     all_papers = pubmed_papers + pubmed_papers_2 + semantic_papers
@@ -360,14 +307,10 @@ def enhanced_retrieval(user_query: str, max_final_papers: int = 10) -> List[Dict
     if not all_papers:
         return []
     
-    # 3. Deduplicate
     unique_papers = deduplicate_papers(all_papers)
     print(f"---AFTER DEDUP: {len(unique_papers)}---")
     
-    # 4. Rank by relevance (embedding-based)
     ranked_papers = rank_by_relevance(unique_papers, user_query, top_k=20)
-    
-    # 5. LLM filter for final selection
     final_papers = filter_by_llm_relevance(ranked_papers, user_query, max_papers=max_final_papers)
     
     print(f"\n---FINAL PAPERS: {len(final_papers)}---")
@@ -376,22 +319,3 @@ def enhanced_retrieval(user_query: str, max_final_papers: int = 10) -> List[Dict
         print(f"     Source: {p['source']}, Citations: {p['citation_count']}, PMID: {p.get('pmid', 'N/A')}")
     
     return final_papers
-
-
-# ============================================================
-# TEST
-# ============================================================
-
-if __name__ == "__main__":
-    query = "What are the benefits of sleeping 7-8 hours?"
-    papers = enhanced_retrieval(query, max_final_papers=8)
-    
-    print(f"\n\n{'='*60}")
-    print("FINAL RESULTS")
-    print(f"{'='*60}")
-    for i, p in enumerate(papers, 1):
-        print(f"\n{i}. {p['title']}")
-        print(f"   Journal: {p['journal']} ({p['year']})")
-        print(f"   PMID: {p.get('pmid', 'N/A')}")
-        print(f"   Citations: {p['citation_count']}")
-        print(f"   Relevance: {p.get('relevance_reason', 'N/A')}")

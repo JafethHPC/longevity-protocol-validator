@@ -2,8 +2,8 @@ import os
 import re
 from pdf2image import convert_from_path
 from pypdf import PdfReader
-from app.vision import analyze_chart
-from app.ingestion import ingest_paper_batch  
+from app.tools.vision import analyze_chart
+from app.services.ingestion import ingest_paper_batch  
 import weaviate
 
 os.makedirs("static/figures", exist_ok=True)

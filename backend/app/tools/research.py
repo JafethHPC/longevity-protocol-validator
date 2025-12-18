@@ -1,11 +1,11 @@
 from langchain_core.tools import tool
 from typing import List
-from app.ingestion import search_pubmed_ids, fetch_details_batch, ingest_paper_batch
-from app.pdf_fetcher import get_pmc_id, download_pdf
-from app.ingest_pdf import process_pdf
+from app.services.ingestion import search_pubmed_ids, fetch_details_batch, ingest_paper_batch
+from app.services.pdf_fetcher import get_pmc_id, download_pdf
+from app.tools.pdf_processing import process_pdf
 from pathlib import Path
 import concurrent.futures
-from app.text_processor import ingest_full_text
+from app.tools.text_processing import ingest_full_text
 
 def process_single_paper(pmid: str, topic: str, save_dir: Path) -> dict:
     """
@@ -61,8 +61,8 @@ def research_pubmed(topic: str) -> str:
     Use this tool when the user asks about a topic you don't have context for.
     """
     import json
-    from app.enhanced_retrieval import enhanced_retrieval
-    from app.ingestion import ingest_paper_batch
+    from app.services.retrieval import enhanced_retrieval
+    from app.services.ingestion import ingest_paper_batch
     
     # Use enhanced retrieval to get relevant papers
     papers = enhanced_retrieval(topic, max_final_papers=8)
@@ -126,7 +126,7 @@ def research_visuals(topic: str) -> str:
     if not ids:
         return "No papers found."
     
-    base_path = Path(__file__).parent.parent
+    base_path = Path(__file__).parent.parent.parent
     save_dir = base_path / "static" / "figures"
     save_dir.mkdir(parents=True, exist_ok=True)
     

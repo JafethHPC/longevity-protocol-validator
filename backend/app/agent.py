@@ -6,7 +6,7 @@ import operator
 from app.core.config import settings
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolNode
-from app.tools import research_pubmed, research_visuals
+from app.tools.research import research_pubmed, research_visuals
 from redis import Redis
 from langgraph.checkpoint.redis import RedisSaver
 from pydantic import BaseModel, Field
@@ -214,7 +214,7 @@ def answer_gen_node(state: AgentState):
     print("---GENERATING FINAL STRUCTURED ANSWER---")
     messages = state['messages']
     
-    from app.rag import prompt as rag_prompt, llm as rag_llm
+    from app.services.rag import prompt as rag_prompt, llm as rag_llm
     
     # Get the most recent human message as the current question
     question = None

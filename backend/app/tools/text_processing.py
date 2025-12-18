@@ -1,7 +1,7 @@
 
 from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from app.ingestion import ingest_paper_batch
+from app.services.ingestion import ingest_paper_batch
 import os
 
 def ingest_full_text(pdf_path: str, pmid: str, title:str):
