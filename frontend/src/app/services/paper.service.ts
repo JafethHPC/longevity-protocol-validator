@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap, Subject } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface Paper {
@@ -13,14 +13,6 @@ export interface Paper {
 export interface SearchRequest {
   query: string;
   limit: number;
-}
-
-export interface ChatResponse {
-  answer: string;
-  consensus: string[];
-  conflict: string[];
-  limitations: string;
-  context_used: string;
 }
 
 export interface StreamEvent {
@@ -41,26 +33,6 @@ export class PaperService {
       query: query,
       limit: 3,
     });
-  }
-
-  research(
-    topic: string
-  ): Observable<{ answer: string; protocols: any[]; thread_id: string }> {
-    const payload = {
-      query: topic,
-      thread_id: this.currentThreadId,
-    };
-
-    return this.http
-      .post<{ answer: string; protocols: any[]; thread_id: string }>(
-        `${this.apiUrl}/chat`,
-        payload
-      )
-      .pipe(
-        tap((response) => {
-          this.currentThreadId = response.thread_id;
-        })
-      );
   }
 
   researchStream(topic: string): Subject<StreamEvent> {

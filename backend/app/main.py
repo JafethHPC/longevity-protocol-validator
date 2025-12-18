@@ -40,10 +40,6 @@ class PaperResponse(BaseModel):
     years: int
     distance: float
 
-class AgentRequest(BaseModel):
-    query: str
-    thread_id: Optional[str] = None
-
 @app.get("/")
 async def health_check():
     """
@@ -88,40 +84,6 @@ async def search_papers(request: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         client.close()
-
-@app.post("/chat")
-async def chat_endpoint(request: AgentRequest):
-    """
-    Unified Research Agent Chat Endpoint.
-    Replaces old simple RAG chat.
-    """
-    try:
-        thread_id = request.thread_id or str(uuid.uuid4())
-
-        config = {"configurable": {"thread_id": thread_id}}
-        config["recursion_limit"] = 50
-
-        current_state = agent_executor.get_state(config)
-        protocols_before = len(current_state.values.get("protocols", [])) if current_state.values else 0
-
-        final_state = agent_executor.invoke(
-            {"messages": [HumanMessage(content=request.query)]},
-            config=config
-        )
-
-        final_response = final_state["messages"][-1].content
-        all_protocols = final_state.get("protocols", [])
-        
-        current_turn_protocols = all_protocols[protocols_before:]
-
-        return {
-            "answer": final_response, 
-            "protocols": current_turn_protocols,
-            "thread_id": thread_id
-        }
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/chat/stream")
 async def chat_stream(
