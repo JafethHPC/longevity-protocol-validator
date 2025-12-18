@@ -5,13 +5,14 @@ FastAPI routes for generating and querying research reports.
 """
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from typing import Dict
 import json
 import asyncio
 
 from app.models.report import ReportRequest, FollowUpRequest, ResearchReport
 from app.services.report import generate_report, generate_followup_answer
+from app.services.pdf_export import generate_report_pdf
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -129,3 +130,42 @@ async def list_reports():
         }
         for r in _report_cache.values()
     ]
+
+
+@router.get("/{report_id}/export/pdf")
+async def export_report_pdf(report_id: str):
+    """
+    Export a report as a styled PDF document.
+    """
+    if report_id not in _report_cache:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    report = _report_cache[report_id]
+    
+    try:
+        pdf_bytes = generate_report_pdf(report)
+        
+        # Create safe filename - remove special characters, limit length
+        safe_chars = []
+        for c in report.question[:40]:
+            if c.isalnum():
+                safe_chars.append(c)
+            elif c in ' -_':
+                safe_chars.append('_')
+        safe_filename = ''.join(safe_chars).strip('_')
+        if not safe_filename:
+            safe_filename = "research_report"
+        filename = f"Research_Report_{safe_filename}.pdf"
+        
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Type": "application/pdf",
+                "Content-Length": str(len(pdf_bytes))
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+

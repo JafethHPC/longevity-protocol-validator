@@ -161,4 +161,16 @@ export class ReportService {
   resetReport(): void {
     this.currentReportId = null;
   }
+
+  exportPdf(): void {
+    if (!this.currentReportId) {
+      throw new Error('No report loaded');
+    }
+
+    // Open PDF in new tab (browser will download it)
+    window.open(
+      `${this.apiUrl}/api/reports/${this.currentReportId}/export/pdf`,
+      '_blank'
+    );
+  }
 }

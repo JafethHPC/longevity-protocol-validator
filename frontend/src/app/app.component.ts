@@ -163,4 +163,8 @@ export class AppComponent {
   formatSourceIndices(indices: number[]): string {
     return indices.map((i) => `[${i}]`).join(' ');
   }
+
+  exportPdf() {
+    this.reportService.exportPdf();
+  }
 }
