@@ -5,6 +5,6 @@ import { ReportPageComponent } from './features/report/report-page.component';
   selector: 'app-root',
   standalone: true,
   imports: [ReportPageComponent],
-  template: `<app-report-page />`,
+  templateUrl: './app.component.html',
 })
 export class AppComponent {}

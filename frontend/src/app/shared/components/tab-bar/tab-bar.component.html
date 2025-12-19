@@ -1,0 +1,19 @@
+<div class="flex border-b border-stone-200">
+  <button
+    *ngFor="let tab of tabs"
+    (click)="selectTab(tab.id)"
+    [class]="getTabClasses(tab.id)"
+  >
+    {{ tab.label }}
+    <span
+      *ngIf="tab.count !== undefined"
+      class="ml-2 px-2 py-0.5 text-xs rounded-full"
+      [class.bg-emerald-100]="activeTab === tab.id"
+      [class.text-emerald-700]="activeTab === tab.id"
+      [class.bg-stone-100]="activeTab !== tab.id"
+      [class.text-stone-500]="activeTab !== tab.id"
+    >
+      {{ tab.count }}
+    </span>
+  </button>
+</div>
