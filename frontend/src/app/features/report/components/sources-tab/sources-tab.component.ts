@@ -1,19 +1,13 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslateModule } from '@ngx-translate/core';
 import { Source, ResearchReport } from '../../../../core/models';
 
 @Component({
   selector: 'app-sources-tab',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslateModule],
   templateUrl: './sources-tab.component.html',
-  styles: [
-    `
-      button {
-        cursor: pointer;
-      }
-    `,
-  ],
 })
 export class SourcesTabComponent {
   @Input({ required: true }) report!: ResearchReport;

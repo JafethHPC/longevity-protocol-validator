@@ -1,11 +1,12 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslateModule } from '@ngx-translate/core';
 import { ResearchProgress, ProgressStep } from '../../../../core/models';
 
 @Component({
   selector: 'app-research-progress',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslateModule],
   templateUrl: './loading-state.component.html',
   styleUrl: './loading-state.component.scss',
 })

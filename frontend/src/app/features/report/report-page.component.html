@@ -22,10 +22,10 @@
       </div>
       <div>
         <h1 class="text-xl font-bold text-stone-800">
-          Research Report Generator
+          {{ "app.title" | translate }}
         </h1>
         <p class="text-sm text-stone-500">
-          AI-powered scientific literature analysis
+          {{ "app.subtitle" | translate }}
         </p>
       </div>
     </div>
@@ -48,13 +48,13 @@
             d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
-        Export PDF
+        {{ "header.export-pdf" | translate }}
       </button>
       <button
         (click)="newReport()"
         class="px-4 py-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
       >
-        + New Report
+        {{ "header.new-report" | translate }}
       </button>
     </div>
   </header>

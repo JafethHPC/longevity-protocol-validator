@@ -1,11 +1,12 @@
 import { Component, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-search-input',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslateModule],
   templateUrl: './search-input.component.html',
 })
 export class SearchInputComponent {
@@ -15,20 +16,20 @@ export class SearchInputComponent {
 
   exampleQueries = [
     {
-      label: 'Creatine dosage',
+      labelKey: 'search.examples.creatine',
       query: 'What is the optimal dosage of creatine for muscle growth?',
     },
     {
-      label: 'Sleep duration',
+      labelKey: 'search.examples.sleep',
       query: 'What are the benefits of 7-8 hours of sleep per night?',
     },
     {
-      label: 'Intermittent fasting',
+      labelKey: 'search.examples.fasting',
       query: 'What are the metabolic benefits of intermittent fasting?',
     },
   ];
 
-  selectExample(example: { label: string; query: string }): void {
+  selectExample(example: { labelKey: string; query: string }): void {
     this.query = example.query;
   }
 

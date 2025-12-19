@@ -1,12 +1,13 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslateModule } from '@ngx-translate/core';
 import { Finding, ResearchReport } from '../../../../core/models';
 import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
 
 @Component({
   selector: 'app-findings-tab',
   standalone: true,
-  imports: [CommonModule, MarkdownPipe],
+  imports: [CommonModule, TranslateModule, MarkdownPipe],
   templateUrl: './findings-tab.component.html',
 })
 export class FindingsTabComponent {

@@ -1,5 +1,7 @@
 <div class="animate-fade-in">
-  <h3 class="text-lg font-semibold text-stone-800 mb-4">Extracted Protocols</h3>
+  <h3 class="text-lg font-semibold text-stone-800 mb-4">
+    {{ "report.protocols.title" | translate }}
+  </h3>
 
   <div
     *ngIf="report.protocols.length === 0"
@@ -18,7 +20,7 @@
         d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
       />
     </svg>
-    <p>No specific protocols were extracted from the research papers.</p>
+    <p>{{ "report.protocols.empty" | translate }}</p>
   </div>
 
   <div *ngIf="report.protocols.length > 0" class="overflow-x-auto">
@@ -26,19 +28,19 @@
       <thead>
         <tr class="border-b-2 border-stone-200">
           <th class="text-left py-3 px-4 text-sm font-semibold text-stone-600">
-            Protocol
+            {{ "report.protocols.table.protocol" | translate }}
           </th>
           <th class="text-left py-3 px-4 text-sm font-semibold text-stone-600">
-            Species
+            {{ "report.protocols.table.species" | translate }}
           </th>
           <th class="text-left py-3 px-4 text-sm font-semibold text-stone-600">
-            Dosage
+            {{ "report.protocols.table.dosage" | translate }}
           </th>
           <th class="text-left py-3 px-4 text-sm font-semibold text-stone-600">
-            Result
+            {{ "report.protocols.table.result" | translate }}
           </th>
           <th class="text-left py-3 px-4 text-sm font-semibold text-stone-600">
-            Ref
+            {{ "report.protocols.table.ref" | translate }}
           </th>
         </tr>
       </thead>

@@ -1,6 +1,8 @@
 <div class="space-y-6 animate-fade-in">
   <div>
-    <h3 class="text-lg font-semibold text-stone-800 mb-4">Key Findings</h3>
+    <h3 class="text-lg font-semibold text-stone-800 mb-4">
+      {{ "report.findings.title" | translate }}
+    </h3>
     <div class="space-y-4">
       <div
         *ngFor="let finding of report.key_findings; let i = index"
@@ -29,7 +31,9 @@
   </div>
 
   <div>
-    <h3 class="text-lg font-semibold text-stone-800 mb-4">Detailed Analysis</h3>
+    <h3 class="text-lg font-semibold text-stone-800 mb-4">
+      {{ "report.findings.detailed-analysis" | translate }}
+    </h3>
     <div
       class="prose prose-stone max-w-none p-4 bg-white rounded-lg border border-stone-200"
       [innerHTML]="report.detailed_analysis | markdown"
@@ -37,7 +41,9 @@
   </div>
 
   <div>
-    <h3 class="text-lg font-semibold text-stone-800 mb-4">Limitations</h3>
+    <h3 class="text-lg font-semibold text-stone-800 mb-4">
+      {{ "report.findings.limitations" | translate }}
+    </h3>
     <div class="p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
       <p class="text-stone-700">{{ report.limitations }}</p>
     </div>

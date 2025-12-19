@@ -4,7 +4,7 @@
     (click)="selectTab(tab.id)"
     [class]="getTabClasses(tab.id)"
   >
-    {{ tab.label }}
+    {{ tab.labelKey | translate }}
     <span
       *ngIf="tab.count !== undefined"
       class="ml-2 px-2 py-0.5 text-xs rounded-full"

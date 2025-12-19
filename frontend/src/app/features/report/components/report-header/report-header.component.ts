@@ -1,11 +1,12 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslateModule } from '@ngx-translate/core';
 import { ResearchReport } from '../../../../core/models';
 
 @Component({
   selector: 'app-report-header',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslateModule],
   templateUrl: './report-header.component.html',
 })
 export class ReportHeaderComponent {

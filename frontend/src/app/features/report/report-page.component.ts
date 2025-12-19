@@ -1,5 +1,6 @@
 import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ReportService, StateService } from '../../core/services';
 import {
   TabBarComponent,
@@ -21,6 +22,7 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    TranslateModule,
     TabBarComponent,
     SearchInputComponent,
     ResearchProgressComponent,
@@ -34,6 +36,7 @@ import {
 })
 export class ReportPageComponent {
   private readonly reportService = inject(ReportService);
+  private readonly translate = inject(TranslateService);
   readonly state = inject(StateService);
 
   readonly tabs = computed<Tab[]>(() => {
@@ -41,17 +44,17 @@ export class ReportPageComponent {
     return [
       {
         id: 'findings' as TabId,
-        label: 'Key Findings',
+        labelKey: 'report.tabs.findings',
         count: report?.key_findings?.length ?? 0,
       },
       {
         id: 'protocols' as TabId,
-        label: 'Protocols',
+        labelKey: 'report.tabs.protocols',
         count: report?.protocols?.length ?? 0,
       },
       {
         id: 'sources' as TabId,
-        label: 'Sources',
+        labelKey: 'report.tabs.sources',
         count: report?.sources?.length ?? 0,
       },
     ];
@@ -91,10 +94,8 @@ export class ReportPageComponent {
         this.state.setFollowUpLoading(false);
       },
       error: (err) => {
-        this.state.addFollowUpMessage(
-          question,
-          'Error: Could not process follow-up question.'
-        );
+        const errorMsg = this.translate.instant('followup.error');
+        this.state.addFollowUpMessage(question, errorMsg);
         this.state.setFollowUpLoading(false);
       },
     });
