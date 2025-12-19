@@ -1,0 +1,89 @@
+{
+  "app": {
+    "title": "Research Report Generator",
+    "subtitle": "AI-powered scientific literature analysis"
+  },
+  "header": {
+    "export-pdf": "Export PDF",
+    "new-report": "+ New Report"
+  },
+  "search": {
+    "title": "What would you like to research?",
+    "subtitle": "Enter a scientific question and we'll analyze the latest research papers.",
+    "placeholder": "e.g., What are the cognitive benefits of intermittent fasting?",
+    "generate-btn": "Generate Report",
+    "examples": {
+      "creatine": "Creatine dosage",
+      "sleep": "Sleep duration",
+      "fasting": "Intermittent fasting"
+    }
+  },
+  "progress": {
+    "title": "Researching Scientific Literature",
+    "subtitle": "Analyzing multiple databases to find relevant papers",
+    "tip": "This typically takes 30-60 seconds",
+    "steps": {
+      "optimizing": "Optimizing search queries",
+      "searching-pubmed": "Searching PubMed",
+      "searching-openalex": "Searching OpenAlex",
+      "searching-europepmc": "Searching Europe PMC",
+      "searching-crossref": "Searching CrossRef",
+      "concept-search": "Running concept searches",
+      "deduplicating": "Removing duplicates",
+      "ranking": "Ranking by relevance",
+      "filtering": "Filtering with AI",
+      "generating-findings": "Generating findings",
+      "extracting-protocols": "Extracting protocols",
+      "complete": "Complete"
+    }
+  },
+  "report": {
+    "executive-summary": "Executive Summary",
+    "tabs": {
+      "findings": "Key Findings",
+      "protocols": "Protocols",
+      "sources": "Sources"
+    },
+    "findings": {
+      "title": "Key Findings",
+      "detailed-analysis": "Detailed Analysis",
+      "limitations": "Limitations",
+      "confidence": {
+        "high": "HIGH",
+        "medium": "MEDIUM",
+        "low": "LOW"
+      }
+    },
+    "protocols": {
+      "title": "Extracted Protocols",
+      "empty": "No specific protocols were extracted from the research papers.",
+      "table": {
+        "protocol": "Protocol",
+        "species": "Species",
+        "dosage": "Dosage",
+        "result": "Result",
+        "ref": "Ref"
+      }
+    },
+    "sources": {
+      "title": "Sources",
+      "abstract": "Abstract",
+      "why-this-paper": "Why This Paper?",
+      "view-pubmed": "View on PubMed",
+      "citations": "citations"
+    },
+    "metadata": {
+      "papers-analyzed": "papers analyzed"
+    }
+  },
+  "followup": {
+    "title": "Follow-up Questions",
+    "placeholder": "Ask a follow-up question about this research...",
+    "ask-btn": "Ask",
+    "error": "Error: Could not process follow-up question."
+  },
+  "errors": {
+    "no-results": "No relevant research papers were found for this question.",
+    "generic": "An error occurred while processing your request."
+  }
+}

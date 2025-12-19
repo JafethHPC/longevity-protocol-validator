@@ -7,7 +7,7 @@ import { ResearchProgress, ProgressStep } from '../../../../core/models';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './loading-state.component.html',
-  styleUrl: './loading-state.component.css',
+  styleUrl: './loading-state.component.scss',
 })
 export class ResearchProgressComponent {
   @Input({ required: true }) progress!: ResearchProgress;
