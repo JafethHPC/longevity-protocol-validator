@@ -15,7 +15,7 @@ from reportlab.platypus import (
     PageBreak, ListFlowable, ListItem
 )
 from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY, TA_CENTER
-from app.models.report import ResearchReport
+from app.schemas.report import ResearchReport
 
 
 def generate_report_pdf(report: ResearchReport) -> bytes:

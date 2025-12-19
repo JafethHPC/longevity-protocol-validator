@@ -3,50 +3,18 @@ Report Generation Service
 
 Generates structured research reports from retrieved papers.
 """
-
 import uuid
 from typing import List, Dict, Optional
 from datetime import datetime
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
 
 from app.core.config import settings
-from app.models.report import (
-    ResearchReport, Source, Finding, Protocol
+from app.schemas.report import (
+    ResearchReport, Source, Finding, Protocol,
+    FindingItem, ProtocolItem, ReportFindings, ExtractedProtocols
 )
 from app.services.retrieval import enhanced_retrieval
 from app.services.ingestion import ingest_paper_batch
-
-
-class FindingItem(BaseModel):
-    """A single finding item"""
-    statement: str = Field(description="The key finding or conclusion")
-    source_indices: List[int] = Field(description="Paper indices supporting this finding")
-    confidence: str = Field(description="low, medium, or high")
-
-
-class ProtocolItem(BaseModel):
-    """A single protocol item"""
-    name: str = Field(description="Name of the intervention/protocol")
-    species: str = Field(description="Human, Mouse, Rat, etc.")
-    dosage: str = Field(description="Specific dosage")
-    frequency: Optional[str] = Field(default=None, description="How often")
-    duration: Optional[str] = Field(default=None, description="Duration of intervention")
-    result: str = Field(description="The outcome/effect")
-    source_index: int = Field(description="Paper number it came from")
-
-
-class ReportFindings(BaseModel):
-    """Structured output for report generation"""
-    executive_summary: str = Field(description="2-3 sentence summary of the key findings")
-    key_findings: List[FindingItem] = Field(description="List of key findings")
-    detailed_analysis: str = Field(description="Comprehensive analysis with inline citations like [1], [2]")
-    limitations: str = Field(description="Limitations of the evidence and gaps in the research")
-
-
-class ExtractedProtocols(BaseModel):
-    """Structured output for protocol extraction"""
-    protocols: List[ProtocolItem] = Field(description="List of extracted protocols")
 
 
 def generate_report(question: str, max_sources: int = 10) -> ResearchReport:

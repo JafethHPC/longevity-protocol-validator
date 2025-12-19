@@ -10,7 +10,7 @@ from typing import Dict
 import json
 import asyncio
 
-from app.models.report import ReportRequest, FollowUpRequest, ResearchReport
+from app.schemas.report import ReportRequest, FollowUpRequest, ResearchReport
 from app.services.report import generate_report, generate_followup_answer
 from app.services.pdf_export import generate_report_pdf
 
