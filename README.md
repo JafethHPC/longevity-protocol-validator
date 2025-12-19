@@ -19,8 +19,8 @@ This application utilizes a **Split-Screen Insight Engine**:
 
 - **Frontend:** Angular 17+ (Standalone Components), TailwindCSS, Nginx (Dockerized).
 - **Backend:** Python FastAPI, Pydantic (Structured Output).
-- **AI/ML:** LangChain, OpenAI GPT-4o.
-- **Vector Database:** Weaviate Cloud Services (Hybrid Search: BM25 + Vector).
+- **AI/ML:** LangChain, OpenAI GPT-4o, OpenAI Embeddings.
+- **Data Sources:** PubMed, OpenAlex, Europe PMC, CrossRef (400M+ papers).
 - **Infrastructure:** Render (CI/CD), Docker Multi-Stage Builds.
 
 ## Key Features
