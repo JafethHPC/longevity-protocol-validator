@@ -1,5 +1,4 @@
 <div class="flex flex-col items-center justify-center py-12 animate-fade-in">
-  <!-- Header -->
   <div class="text-center mb-8">
     <div
       class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg"
@@ -26,14 +25,12 @@
     </p>
   </div>
 
-  <!-- Progress Steps -->
   <div
     class="w-full max-w-md bg-white rounded-xl shadow-sm border border-stone-200 p-6"
   >
     <div class="space-y-3">
       @for (step of progress.steps; track step.id) {
       <div class="flex items-center gap-3">
-        <!-- Status Icon -->
         <div class="flex-shrink-0 w-6 h-6">
           @switch (step.status) { @case ('complete') {
           <div
@@ -84,7 +81,6 @@
           } }
         </div>
 
-        <!-- Step Label -->
         <div class="flex-grow min-w-0">
           <p
             [class]="getStepTextClass(step.status)"
@@ -94,7 +90,6 @@
           </p>
         </div>
 
-        <!-- Step Detail -->
         @if (step.detail && (step.status === 'complete' || step.status ===
         'active')) {
         <span class="text-xs text-emerald-600 font-medium whitespace-nowrap">
@@ -105,7 +100,6 @@
       }
     </div>
 
-    <!-- Progress Bar -->
     <div class="mt-6">
       <div
         class="flex items-center justify-between text-xs text-stone-500 mb-2"
@@ -122,6 +116,5 @@
     </div>
   </div>
 
-  <!-- Tip -->
   <p class="mt-6 text-sm text-stone-400">This typically takes 30-60 seconds</p>
 </div>

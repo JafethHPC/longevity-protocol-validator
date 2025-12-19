@@ -1,5 +1,4 @@
 <div class="min-h-screen bg-stone-100 flex flex-col">
-  <!-- Header -->
   <header
     class="bg-white border-b border-stone-200 py-4 px-6 flex items-center justify-between shadow-sm"
   >
@@ -60,28 +59,23 @@
     </div>
   </header>
 
-  <!-- Main Content -->
   <main class="flex-1 overflow-auto p-6">
-    <!-- Search Input (no report, not loading) -->
     <app-search-input
       *ngIf="!state.hasReport() && !state.isLoading()"
       (search)="generateReport($event)"
     />
 
-    <!-- Loading State with Progress -->
     <app-research-progress
       *ngIf="state.isLoading()"
       [progress]="state.progress()"
     />
 
-    <!-- Report Display -->
     <div
       *ngIf="state.hasReport() && !state.isLoading()"
       class="max-w-4xl mx-auto"
     >
       <app-report-header [report]="state.report()!" />
 
-      <!-- Tabs -->
       <app-tab-bar
         [tabs]="tabs()"
         [activeTab]="state.activeTab()"
@@ -89,19 +83,16 @@
       />
 
       <div class="mt-6">
-        <!-- Findings Tab -->
         <app-findings-tab
           *ngIf="state.activeTab() === 'findings'"
           [report]="state.report()!"
         />
 
-        <!-- Protocols Tab -->
         <app-protocols-tab
           *ngIf="state.activeTab() === 'protocols'"
           [report]="state.report()!"
         />
 
-        <!-- Sources Tab -->
         <app-sources-tab
           *ngIf="state.activeTab() === 'sources'"
           [report]="state.report()!"
@@ -110,7 +101,6 @@
         />
       </div>
 
-      <!-- Follow-up Section -->
       <app-follow-up-section
         [messages]="state.followUpMessages()"
         [isLoading]="state.isFollowUpLoading()"

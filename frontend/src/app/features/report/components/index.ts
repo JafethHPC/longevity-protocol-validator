@@ -1,4 +1,3 @@
-// Export all report feature components
 export * from './search-input/search-input.component';
 export { ResearchProgressComponent } from './loading-state/loading-state.component';
 export * from './report-header/report-header.component';

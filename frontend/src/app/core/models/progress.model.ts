@@ -1,14 +1,3 @@
-/**
- * Progress Models
- *
- * TypeScript interfaces for streaming progress updates
- * during report generation.
- */
-
-/**
- * All possible step identifiers in the research pipeline.
- * Must match backend ProgressStep enum values.
- */
 export type ProgressStepId =
   | 'optimizing'
   | 'searching_pubmed'
@@ -23,23 +12,14 @@ export type ProgressStepId =
   | 'extracting_protocols'
   | 'complete';
 
-/**
- * Status of a progress step.
- */
 export type ProgressStepStatus = 'pending' | 'active' | 'complete' | 'error';
 
-/**
- * Configuration for a single progress step.
- */
 export interface ProgressStepConfig {
   id: ProgressStepId;
   label: string;
   order: number;
 }
 
-/**
- * Runtime state of a progress step.
- */
 export interface ProgressStep {
   id: ProgressStepId;
   label: string;
@@ -47,9 +27,6 @@ export interface ProgressStep {
   detail?: string;
 }
 
-/**
- * Complete research progress state.
- */
 export interface ResearchProgress {
   steps: ProgressStep[];
   currentStepId: ProgressStepId | null;
@@ -59,9 +36,6 @@ export interface ResearchProgress {
   errorMessage?: string;
 }
 
-/**
- * Progress event received from backend SSE stream.
- */
 export interface ProgressEvent {
   step: ProgressStepId;
   message: string;
@@ -69,10 +43,6 @@ export interface ProgressEvent {
   progress: number;
 }
 
-/**
- * Default step configuration with labels and order.
- * Matches backend STEP_CONFIG.
- */
 export const PROGRESS_STEPS_CONFIG: ProgressStepConfig[] = [
   { id: 'optimizing', label: 'Optimizing search queries', order: 1 },
   { id: 'searching_pubmed', label: 'Searching PubMed', order: 2 },
@@ -87,9 +57,6 @@ export const PROGRESS_STEPS_CONFIG: ProgressStepConfig[] = [
   { id: 'extracting_protocols', label: 'Extracting protocols', order: 11 },
 ];
 
-/**
- * Create initial progress state with all steps pending.
- */
 export function createInitialProgress(): ResearchProgress {
   return {
     steps: PROGRESS_STEPS_CONFIG.map((config) => ({

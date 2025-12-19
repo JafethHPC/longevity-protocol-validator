@@ -9,15 +9,10 @@ import {
   PROGRESS_STEPS_CONFIG,
 } from '../models';
 
-/**
- * State management service for the application.
- * Uses Angular signals for reactive state management.
- */
 @Injectable({
   providedIn: 'root',
 })
 export class StateService {
-  // Core state signals
   private readonly _report = signal<ResearchReport | null>(null);
   private readonly _isLoading = signal<boolean>(false);
   private readonly _loadingMessage = signal<string>('');
@@ -29,12 +24,10 @@ export class StateService {
   private readonly _error = signal<string | null>(null);
   private readonly _isFollowUpLoading = signal<boolean>(false);
 
-  // Progress state for streaming updates
   private readonly _progress = signal<ResearchProgress>(
     createInitialProgress()
   );
 
-  // Public readonly signals
   readonly report = this._report.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
   readonly loadingMessage = this._loadingMessage.asReadonly();
@@ -45,7 +38,6 @@ export class StateService {
   readonly isFollowUpLoading = this._isFollowUpLoading.asReadonly();
   readonly progress = this._progress.asReadonly();
 
-  // Computed values
   readonly hasReport = computed(() => this._report() !== null);
   readonly sourcesCount = computed(() => this._report()?.sources?.length ?? 0);
   readonly findingsCount = computed(
@@ -55,12 +47,10 @@ export class StateService {
     () => this._report()?.protocols?.length ?? 0
   );
 
-  // Actions
   setReport(report: ResearchReport | null): void {
     this._report.set(report);
     if (report) {
       this._error.set(null);
-      // Mark progress as complete
       this._progress.update((p) => ({
         ...p,
         isComplete: true,
@@ -74,36 +64,27 @@ export class StateService {
     this._isLoading.set(isLoading);
     this._loadingMessage.set(message);
 
-    // Reset progress when starting a new load
     if (isLoading) {
       this._progress.set(createInitialProgress());
     }
   }
 
-  /**
-   * Update progress based on a progress event from the backend.
-   */
   updateProgress(event: ProgressEvent): void {
     this._progress.update((current) => {
-      // Find the index of the step that just updated
       const stepIndex = current.steps.findIndex((s) => s.id === event.step);
 
       if (stepIndex === -1) return current;
 
-      // Update all steps
       const newSteps = current.steps.map((step, idx) => {
         if (idx < stepIndex) {
-          // Previous steps are complete
           return { ...step, status: 'complete' as const };
         } else if (idx === stepIndex) {
-          // Current step is active
           return {
             ...step,
             status: 'active' as const,
             detail: event.detail || undefined,
           };
         } else {
-          // Future steps remain pending
           return { ...step, status: 'pending' as const };
         }
       });
@@ -116,13 +97,9 @@ export class StateService {
       };
     });
 
-    // Also update the loading message
     this._loadingMessage.set(event.message);
   }
 
-  /**
-   * Mark progress as having an error.
-   */
   setProgressError(errorMessage: string): void {
     this._progress.update((current) => ({
       ...current,

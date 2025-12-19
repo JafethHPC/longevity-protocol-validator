@@ -36,7 +36,6 @@ export class ReportPageComponent {
   private readonly reportService = inject(ReportService);
   readonly state = inject(StateService);
 
-  // Computed tabs with counts
   readonly tabs = computed<Tab[]>(() => {
     const report = this.state.report();
     return [
@@ -65,7 +64,6 @@ export class ReportPageComponent {
     this.reportService.generateReport(question).subscribe({
       next: (event) => {
         if (event.type === 'progress') {
-          // Update progress state with granular step info
           this.state.updateProgress(event.data);
         } else if (event.type === 'report') {
           this.state.setReport(event.data);
