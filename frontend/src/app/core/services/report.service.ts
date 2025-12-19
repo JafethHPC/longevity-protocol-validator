@@ -1,72 +1,31 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { environment } from '../../../environments/environment';
+import { ResearchReport, ReportStreamEvent, FollowUpResponse } from '../models';
 
-export interface Source {
-  index: number;
-  title: string;
-  journal: string;
-  year: number;
-  pmid: string;
-  abstract: string;
-  url: string;
-  citation_count: number;
-  relevance_reason?: string;
-}
-
-export interface Finding {
-  statement: string;
-  source_indices: number[];
-  confidence: string;
-}
-
-export interface Protocol {
-  name: string;
-  species: string;
-  dosage: string;
-  frequency?: string;
-  duration?: string;
-  result: string;
-  source_index: number;
-}
-
-export interface ResearchReport {
-  id: string;
-  question: string;
-  generated_at: string;
-  executive_summary: string;
-  key_findings: Finding[];
-  detailed_analysis: string;
-  protocols: Protocol[];
-  limitations: string;
-  sources: Source[];
-  total_papers_searched: number;
-  papers_used: number;
-}
-
-export interface ReportStreamEvent {
-  type: 'status' | 'report' | 'complete' | 'error';
-  data: any;
-}
-
+/**
+ * Service for interacting with the Research Report API.
+ * Handles report generation, retrieval, follow-ups, and PDF export.
+ */
 @Injectable({
   providedIn: 'root',
 })
 export class ReportService {
-  private http = inject(HttpClient);
-  private apiUrl = environment.apiUrl;
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = environment.apiUrl;
   private currentReportId: string | null = null;
 
+  /**
+   * Generate a new research report with streaming progress updates.
+   */
   generateReport(
     question: string,
     maxSources: number = 10
   ): Subject<ReportStreamEvent> {
     const subject = new Subject<ReportStreamEvent>();
-
     const url = `${this.apiUrl}/api/reports/generate/stream`;
 
-    // Use fetch with POST for SSE
     fetch(url, {
       method: 'POST',
       headers: {
@@ -98,7 +57,6 @@ export class ReportService {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // Process complete events from buffer
           const lines = buffer.split('\n\n');
           buffer = lines.pop() || '';
 
@@ -131,46 +89,57 @@ export class ReportService {
     return subject;
   }
 
+  /**
+   * Get a previously generated report by ID.
+   */
   getReport(reportId: string): Observable<ResearchReport> {
     return this.http.get<ResearchReport>(
       `${this.apiUrl}/api/reports/${reportId}`
     );
   }
 
-  askFollowUp(
-    question: string
-  ): Observable<{ question: string; answer: string; report_id: string }> {
+  /**
+   * Ask a follow-up question about the current report.
+   */
+  askFollowUp(question: string): Observable<FollowUpResponse> {
     if (!this.currentReportId) {
       throw new Error('No report loaded');
     }
 
-    return this.http.post<{
-      question: string;
-      answer: string;
-      report_id: string;
-    }>(`${this.apiUrl}/api/reports/${this.currentReportId}/followup`, {
-      report_id: this.currentReportId,
-      question,
-    });
+    return this.http.post<FollowUpResponse>(
+      `${this.apiUrl}/api/reports/${this.currentReportId}/followup`,
+      {
+        report_id: this.currentReportId,
+        question,
+      }
+    );
   }
 
-  getCurrentReportId(): string | null {
-    return this.currentReportId;
-  }
-
-  resetReport(): void {
-    this.currentReportId = null;
-  }
-
+  /**
+   * Export the current report as a PDF.
+   */
   exportPdf(): void {
     if (!this.currentReportId) {
       throw new Error('No report loaded');
     }
 
-    // Open PDF in new tab (browser will download it)
     window.open(
       `${this.apiUrl}/api/reports/${this.currentReportId}/export/pdf`,
       '_blank'
     );
+  }
+
+  /**
+   * Get the current report ID.
+   */
+  getCurrentReportId(): string | null {
+    return this.currentReportId;
+  }
+
+  /**
+   * Reset the service state.
+   */
+  resetReport(): void {
+    this.currentReportId = null;
   }
 }

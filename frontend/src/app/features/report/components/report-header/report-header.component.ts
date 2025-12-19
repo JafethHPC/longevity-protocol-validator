@@ -1,0 +1,80 @@
+import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ResearchReport } from '../../../../core/models';
+
+@Component({
+  selector: 'app-report-header',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div class="mb-6 animate-fade-in">
+      <div class="flex items-start justify-between">
+        <div class="flex-1">
+          <h2 class="text-2xl font-bold text-stone-800 mb-2">
+            {{ report.question }}
+          </h2>
+          <div class="flex items-center gap-4 text-sm text-stone-500">
+            <span class="flex items-center gap-1">
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              {{ report.papers_used }} papers analyzed
+            </span>
+            <span class="flex items-center gap-1">
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {{ formatDate(report.generated_at) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Executive Summary -->
+      <div
+        class="mt-6 p-4 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg"
+      >
+        <h3
+          class="text-sm font-semibold text-emerald-800 uppercase tracking-wide mb-2"
+        >
+          Executive Summary
+        </h3>
+        <p class="text-stone-700 leading-relaxed">
+          {{ report.executive_summary }}
+        </p>
+      </div>
+    </div>
+  `,
+})
+export class ReportHeaderComponent {
+  @Input({ required: true }) report!: ResearchReport;
+
+  formatDate(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
+}

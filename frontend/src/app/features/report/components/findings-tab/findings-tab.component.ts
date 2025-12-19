@@ -1,0 +1,81 @@
+import { Component, Input } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Finding, ResearchReport } from '../../../../core/models';
+import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
+
+@Component({
+  selector: 'app-findings-tab',
+  standalone: true,
+  imports: [CommonModule, MarkdownPipe],
+  template: `
+    <div class="space-y-6 animate-fade-in">
+      <!-- Key Findings -->
+      <div>
+        <h3 class="text-lg font-semibold text-stone-800 mb-4">Key Findings</h3>
+        <div class="space-y-4">
+          <div
+            *ngFor="let finding of report.key_findings; let i = index"
+            class="flex gap-4 p-4 bg-white rounded-lg border border-stone-200 hover:border-stone-300 transition-colors"
+          >
+            <div
+              class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-semibold text-sm"
+            >
+              {{ i + 1 }}
+            </div>
+            <div class="flex-1">
+              <p class="text-stone-700 leading-relaxed">
+                {{ finding.statement }}
+              </p>
+              <div class="mt-2 flex items-center gap-3 text-sm">
+                <span [class]="getConfidenceBadge(finding.confidence)">
+                  {{ finding.confidence | uppercase }}
+                </span>
+                <span class="text-stone-400">
+                  {{ formatSourceIndices(finding.source_indices) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Analysis -->
+      <div>
+        <h3 class="text-lg font-semibold text-stone-800 mb-4">
+          Detailed Analysis
+        </h3>
+        <div
+          class="prose prose-stone max-w-none p-4 bg-white rounded-lg border border-stone-200"
+          [innerHTML]="report.detailed_analysis | markdown"
+        ></div>
+      </div>
+
+      <!-- Limitations -->
+      <div>
+        <h3 class="text-lg font-semibold text-stone-800 mb-4">Limitations</h3>
+        <div class="p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+          <p class="text-stone-700">{{ report.limitations }}</p>
+        </div>
+      </div>
+    </div>
+  `,
+})
+export class FindingsTabComponent {
+  @Input({ required: true }) report!: ResearchReport;
+
+  getConfidenceBadge(confidence: string): string {
+    const base = 'px-2 py-0.5 rounded-full text-xs font-medium';
+    const colors: Record<string, string> = {
+      high: 'bg-emerald-100 text-emerald-800',
+      medium: 'bg-amber-100 text-amber-800',
+      low: 'bg-red-100 text-red-800',
+    };
+    return `${base} ${
+      colors[confidence.toLowerCase()] || 'bg-stone-100 text-stone-800'
+    }`;
+  }
+
+  formatSourceIndices(indices: number[]): string {
+    return indices.map((i) => `[${i}]`).join(' ');
+  }
+}

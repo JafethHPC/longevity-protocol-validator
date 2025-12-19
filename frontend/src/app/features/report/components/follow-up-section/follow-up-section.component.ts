@@ -1,0 +1,115 @@
+import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { FollowUpMessage } from '../../../../core/models';
+import { MarkdownPipe } from '../../../../shared/pipes/markdown.pipe';
+
+@Component({
+  selector: 'app-follow-up-section',
+  standalone: true,
+  imports: [CommonModule, FormsModule, MarkdownPipe],
+  template: `
+    <div class="mt-8 pt-6 border-t border-stone-200 animate-fade-in">
+      <h3 class="text-lg font-semibold text-stone-800 mb-4">
+        Follow-up Questions
+      </h3>
+
+      <!-- Previous Q&A -->
+      <div *ngIf="messages.length > 0" class="space-y-4 mb-6">
+        <div *ngFor="let msg of messages" class="bg-stone-50 rounded-lg p-4">
+          <div class="flex items-start gap-3 mb-3">
+            <div
+              class="w-6 h-6 rounded-full bg-stone-200 flex items-center justify-center"
+            >
+              <svg
+                class="w-4 h-4 text-stone-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+            </div>
+            <p class="font-medium text-stone-800">{{ msg.question }}</p>
+          </div>
+          <div
+            class="ml-9 prose prose-sm prose-stone max-w-none"
+            [innerHTML]="msg.answer | markdown"
+          ></div>
+        </div>
+      </div>
+
+      <!-- New Question Input -->
+      <div class="flex gap-3">
+        <input
+          type="text"
+          [(ngModel)]="newQuestion"
+          (keydown.enter)="submit()"
+          placeholder="Ask a follow-up question about this research..."
+          class="flex-1 px-4 py-2.5 border border-stone-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+          [disabled]="isLoading"
+        />
+        <button
+          (click)="submit()"
+          [disabled]="!newQuestion.trim() || isLoading"
+          class="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+        >
+          <svg
+            *ngIf="isLoading"
+            class="w-4 h-4 animate-spin"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          <svg
+            *ngIf="!isLoading"
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+            />
+          </svg>
+          Ask
+        </button>
+      </div>
+    </div>
+  `,
+})
+export class FollowUpSectionComponent {
+  @Input() messages: FollowUpMessage[] = [];
+  @Input() isLoading = false;
+  @Output() askQuestion = new EventEmitter<string>();
+
+  newQuestion = '';
+
+  submit(): void {
+    if (this.newQuestion.trim() && !this.isLoading) {
+      this.askQuestion.emit(this.newQuestion.trim());
+      this.newQuestion = '';
+    }
+  }
+}
