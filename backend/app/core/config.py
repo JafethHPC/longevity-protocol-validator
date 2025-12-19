@@ -8,10 +8,8 @@ load_dotenv(dotenv_path=env_path)
 class Settings:
     PROJECT_NAME: str = "Longevity Validator"
 
-    # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
 
-    # LangChain
     LANGCHAIN_TRACING_V2: str = "true"
     LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
     LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY")

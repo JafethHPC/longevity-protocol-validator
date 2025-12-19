@@ -16,7 +16,6 @@ from app.services.pdf_export import generate_report_pdf
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
-# In-memory cache for reports (in production, use Redis or database)
 _report_cache: Dict[str, ResearchReport] = {}
 
 
@@ -32,7 +31,6 @@ async def create_report(request: ReportRequest):
             max_sources=request.max_sources
         )
         
-        # Cache the report for follow-up questions
         _report_cache[report.id] = report
         
         return report
@@ -58,7 +56,6 @@ async def create_report_stream(request: ReportRequest):
     from typing import Optional
     from app.schemas.events import ProgressStep, ProgressEvent, STEP_CONFIG
     
-    # Thread-safe queue for progress events
     progress_queue: queue.Queue = queue.Queue()
     report_result = {"report": None, "error": None}
     
@@ -85,29 +82,23 @@ async def create_report_stream(request: ReportRequest):
         except Exception as e:
             report_result["error"] = str(e)
         finally:
-            # Signal completion
             progress_queue.put(None)
     
     async def event_generator():
         """Async generator that yields SSE events."""
-        # Start generation in background thread
         thread = threading.Thread(target=run_generation, daemon=True)
         thread.start()
         
-        # Yield progress events as they come in
         while True:
             try:
-                # Check for events with timeout
                 event = await asyncio.get_event_loop().run_in_executor(
                     None,
                     lambda: progress_queue.get(timeout=0.1)
                 )
                 
                 if event is None:
-                    # Generation complete
                     break
                 
-                # Yield progress event
                 event_data = {
                     "step": event.step.value,
                     "message": event.message,
@@ -117,18 +108,14 @@ async def create_report_stream(request: ReportRequest):
                 yield f"event: progress\ndata: {json.dumps(event_data)}\n\n"
                 
             except queue.Empty:
-                # No event yet, continue waiting
                 continue
         
-        # Wait for thread to finish
         thread.join(timeout=5.0)
         
-        # Check for errors
         if report_result["error"]:
             yield f"event: error\ndata: {json.dumps({'error': report_result['error']})}\n\n"
             return
         
-        # Send the complete report
         report = report_result["report"]
         if report:
             _report_cache[report.id] = report
@@ -209,7 +196,6 @@ async def export_report_pdf(report_id: str):
     try:
         pdf_bytes = generate_report_pdf(report)
         
-        # Create safe filename - remove special characters, limit length
         safe_chars = []
         for c in report.question[:40]:
             if c.isalnum():
@@ -232,4 +218,3 @@ async def export_report_pdf(report_id: str):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
-

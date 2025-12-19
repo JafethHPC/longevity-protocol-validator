@@ -11,10 +11,9 @@ class Paper(TypedDict):
     journal: str
     year: int
     pmid: str
-    source: str  # Which source it came from (PubMed, OpenAlex, etc.)
+    source: str
     is_review: bool
     citation_count: int
     url: str
-    # Added during processing
     relevance_score: Optional[float]
     relevance_reason: Optional[str]

@@ -8,7 +8,6 @@ PubMed provides access to 36M+ biomedical literature citations.
 from typing import List, Dict
 from Bio import Entrez
 
-# Set email for Entrez (required by NCBI)
 Entrez.email = "researcher@example.com"
 
 

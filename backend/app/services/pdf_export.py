@@ -32,10 +32,8 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         bottomMargin=0.75*inch
     )
     
-    # Custom styles - clean, minimal, professional
     styles = getSampleStyleSheet()
     
-    # Title style
     styles.add(ParagraphStyle(
         name='ReportTitle',
         parent=styles['Heading1'],
@@ -46,7 +44,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         fontName='Helvetica-Bold'
     ))
     
-    # Question style
     styles.add(ParagraphStyle(
         name='Question',
         parent=styles['Normal'],
@@ -58,7 +55,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         leading=18
     ))
     
-    # Section header
     styles.add(ParagraphStyle(
         name='SectionHeader',
         parent=styles['Heading2'],
@@ -70,7 +66,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         borderPadding=0
     ))
     
-    # Body text
     styles.add(ParagraphStyle(
         name='ReportBody',
         parent=styles['Normal'],
@@ -82,7 +77,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         alignment=TA_JUSTIFY
     ))
     
-    # Summary box text
     styles.add(ParagraphStyle(
         name='SummaryText',
         parent=styles['Normal'],
@@ -95,7 +89,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         rightIndent=10
     ))
     
-    # Citation text (smaller)
     styles.add(ParagraphStyle(
         name='Citation',
         parent=styles['Normal'],
@@ -106,7 +99,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         leading=12
     ))
     
-    # Source title
     styles.add(ParagraphStyle(
         name='SourceTitle',
         parent=styles['Normal'],
@@ -117,7 +109,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         leading=12
     ))
     
-    # Source meta
     styles.add(ParagraphStyle(
         name='SourceMeta',
         parent=styles['Normal'],
@@ -128,53 +119,42 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         leading=11
     ))
     
-    # Build document content
     story = []
     
-    # Header
     story.append(Paragraph("Research Report", styles['ReportTitle']))
     story.append(Spacer(1, 4))
     
-    # Question
     safe_question = _safe_text(report.question)
     story.append(Paragraph(safe_question, styles['Question']))
     
-    # Metadata line
     meta_text = f"{report.papers_used} papers analyzed"
     story.append(Paragraph(meta_text, styles['Citation']))
     story.append(Spacer(1, 12))
     
-    # Divider line
     story.append(_create_divider())
     
-    # Executive Summary
     story.append(Paragraph("Summary", styles['SectionHeader']))
     safe_summary = _safe_text(report.executive_summary)
     story.append(Paragraph(safe_summary, styles['SummaryText']))
     story.append(Spacer(1, 8))
     
-    # Key Findings
     story.append(Paragraph("Key Findings", styles['SectionHeader']))
     
     for i, finding in enumerate(report.key_findings, 1):
         sources_str = ", ".join([str(idx) for idx in finding.source_indices])
         safe_statement = _safe_text(finding.statement)
         
-        # Finding with bullet number
         finding_text = f"<b>{i}.</b> {safe_statement}"
         story.append(Paragraph(finding_text, styles['ReportBody']))
         
-        # Confidence and sources on same line
         meta_line = f"<i>Confidence: {finding.confidence.capitalize()} | Sources: [{sources_str}]</i>"
         story.append(Paragraph(meta_line, styles['Citation']))
         story.append(Spacer(1, 6))
     
     story.append(Spacer(1, 8))
     
-    # Detailed Analysis
     story.append(Paragraph("Detailed Analysis", styles['SectionHeader']))
     
-    # Split analysis into paragraphs
     analysis_paragraphs = report.detailed_analysis.split('\n\n')
     for para in analysis_paragraphs:
         if para.strip():
@@ -183,11 +163,9 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
     
     story.append(Spacer(1, 8))
     
-    # Protocols (if any)
     if report.protocols:
         story.append(Paragraph("Protocols", styles['SectionHeader']))
         
-        # Create a style for table cells
         cell_style = ParagraphStyle(
             name='TableCell',
             parent=styles['Normal'],
@@ -197,7 +175,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
             fontName='Helvetica'
         )
         
-        # Table header
         header_row = [
             Paragraph('<b>Protocol</b>', cell_style),
             Paragraph('<b>Dosage</b>', cell_style),
@@ -217,7 +194,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
             ]
             table_data.append(row)
         
-        # Create table with proper widths for wrapping
         table = Table(table_data, colWidths=[1.6*inch, 1.0*inch, 0.6*inch, 2.4*inch, 0.4*inch])
         table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -231,32 +207,26 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         story.append(table)
         story.append(Spacer(1, 12))
     
-    # Limitations
     story.append(Paragraph("Limitations", styles['SectionHeader']))
     safe_limitations = _safe_text(report.limitations)
     story.append(Paragraph(safe_limitations, styles['ReportBody']))
     
-    # Page break before sources
     story.append(PageBreak())
     
-    # Sources
     story.append(Paragraph("References", styles['SectionHeader']))
     story.append(Spacer(1, 4))
     
     for source in report.sources:
-        # Reference number and title
         safe_title = _safe_text(source.title)
         ref_text = f"<b>[{source.index}]</b> {safe_title}"
         story.append(Paragraph(ref_text, styles['SourceTitle']))
         
-        # Journal, year, PMID
         safe_journal = _safe_text(source.journal)
         meta_text = f"{safe_journal} ({source.year})"
         if source.pmid:
             meta_text += f" • PMID: {source.pmid}"
         story.append(Paragraph(meta_text, styles['SourceMeta']))
         
-        # Abstract (truncated)
         if source.abstract:
             safe_abstract = _safe_text(source.abstract[:400])
             if len(source.abstract) > 400:
@@ -265,7 +235,6 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
         
         story.append(Spacer(1, 10))
     
-    # Build PDF
     doc.build(story)
     buffer.seek(0)
     
@@ -276,11 +245,9 @@ def _safe_text(text: str) -> str:
     """Make text safe for ReportLab by escaping special characters."""
     if not text:
         return ""
-    # Replace problematic characters
     text = text.replace('&', '&amp;')
     text = text.replace('<', '&lt;')
     text = text.replace('>', '&gt;')
-    # Handle unicode quotes and dashes
     text = text.replace('\u2018', "'")
     text = text.replace('\u2019', "'")
     text = text.replace('\u201c', '"')

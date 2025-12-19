@@ -47,7 +47,6 @@ class CompleteEvent(BaseModel):
     report_id: str
 
 
-# Step configuration with labels and progress percentages
 STEP_CONFIG = {
     ProgressStep.OPTIMIZING: {"label": "Optimizing search queries", "progress": 5},
     ProgressStep.SEARCHING_PUBMED: {"label": "Searching PubMed", "progress": 15},

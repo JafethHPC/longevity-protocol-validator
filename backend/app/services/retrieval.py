@@ -21,7 +21,6 @@ from app.services.sources import (
     search_crossref,
 )
 
-# Type alias for progress callback
 ProgressCallback = Callable[[ProgressStep, str, Optional[str]], None]
 
 
@@ -74,17 +73,14 @@ def deduplicate_papers(papers: List[Dict]) -> List[Dict]:
     unique_papers = []
     
     for paper in papers:
-        # Check PMID first (most reliable for identifying duplicates)
         pmid = paper.get('pmid', '')
         if pmid and pmid in seen_pmids:
             continue
         
-        # Check title similarity
         title_key = paper['title'].lower().strip()[:60]
         if title_key in seen_titles:
             continue
         
-        # Add to seen sets
         if pmid:
             seen_pmids.add(pmid)
         seen_titles.add(title_key)
@@ -208,36 +204,29 @@ def enhanced_retrieval(
     print(f"Target papers: {max_final_papers}")
     print(f"{'='*60}\n")
     
-    # Step 1: Optimize query
     optimized = optimize_query(user_query, on_progress)
     
-    # Search 4 reliable sources
     per_source_max = 30
     
     print(f"---SEARCH LIMITS: {per_source_max} papers per source---")
     print(f"---SOURCES: PubMed, OpenAlex, Europe PMC, CrossRef---")
     
-    # Step 2: Search PubMed
     on_progress(ProgressStep.SEARCHING_PUBMED, "Searching PubMed...", None)
     pubmed_papers = search_pubmed(optimized.pubmed_query, max_results=per_source_max)
     on_progress(ProgressStep.SEARCHING_PUBMED, "Searched PubMed", f"Found {len(pubmed_papers)} papers")
     
-    # Step 3: Search OpenAlex
     on_progress(ProgressStep.SEARCHING_OPENALEX, "Searching OpenAlex...", None)
     openalex_papers = search_openalex(optimized.semantic_query, max_results=per_source_max)
     on_progress(ProgressStep.SEARCHING_OPENALEX, "Searched OpenAlex", f"Found {len(openalex_papers)} papers")
     
-    # Step 4: Search Europe PMC
     on_progress(ProgressStep.SEARCHING_EUROPEPMC, "Searching Europe PMC...", None)
     europepmc_papers = search_europe_pmc(optimized.semantic_query, max_results=per_source_max)
     on_progress(ProgressStep.SEARCHING_EUROPEPMC, "Searched Europe PMC", f"Found {len(europepmc_papers)} papers")
     
-    # Step 5: Search CrossRef
     on_progress(ProgressStep.SEARCHING_CROSSREF, "Searching CrossRef...", None)
     crossref_papers = search_crossref(optimized.semantic_query, max_results=per_source_max)
     on_progress(ProgressStep.SEARCHING_CROSSREF, "Searched CrossRef", f"Found {len(crossref_papers)} papers")
     
-    # Step 6: Concept-based searches
     concept_query = " ".join(optimized.key_concepts[:3])
     print(f"---CONCEPT SEARCH: {concept_query}---")
     on_progress(ProgressStep.CONCEPT_SEARCH, "Running additional concept searches...", None)
@@ -245,7 +234,6 @@ def enhanced_retrieval(
     pubmed_concept = search_pubmed(concept_query, max_results=per_source_max)
     openalex_concept = search_openalex(concept_query, max_results=per_source_max)
     
-    # Combine all sources
     all_papers = (
         pubmed_papers + 
         openalex_papers + 
@@ -259,17 +247,14 @@ def enhanced_retrieval(
     if not all_papers:
         return []
     
-    # Step 7: Deduplicate
     on_progress(ProgressStep.DEDUPLICATING, "Removing duplicate papers...", f"{len(all_papers)} total papers")
     unique_papers = deduplicate_papers(all_papers)
     print(f"---AFTER DEDUP: {len(unique_papers)}---")
     on_progress(ProgressStep.DEDUPLICATING, "Removed duplicates", f"{len(unique_papers)} unique papers")
     
-    # Step 8: Rank by relevance
     top_k_for_ranking = min(len(unique_papers), max_final_papers * 2)
     ranked_papers = rank_by_relevance(unique_papers, user_query, top_k=top_k_for_ranking, on_progress=on_progress)
     
-    # Step 9: LLM filter
     final_papers = filter_by_llm_relevance(ranked_papers, user_query, max_papers=max_final_papers, on_progress=on_progress)
     
     print(f"\n---FINAL PAPERS: {len(final_papers)}---")

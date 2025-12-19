@@ -16,7 +16,6 @@ from app.schemas.report import (
 from app.schemas.events import ProgressStep
 from app.services.retrieval import enhanced_retrieval, ProgressCallback
 
-# Default no-op callback
 def _noop_callback(step: ProgressStep, message: str, detail: Optional[str] = None):
     pass
 
@@ -44,7 +43,6 @@ def generate_report(
     print(f"GENERATING REPORT: {question}")
     print(f"{'='*60}\n")
     
-    # 1. Retrieve papers (with progress callbacks)
     papers = enhanced_retrieval(question, max_final_papers=max_sources, on_progress=on_progress)
     
     if not papers:
@@ -61,7 +59,6 @@ def generate_report(
             papers_used=0
         )
     
-    # Convert papers to Source objects
     sources = [
         Source(
             index=i + 1,
@@ -77,18 +74,14 @@ def generate_report(
         for i, p in enumerate(papers)
     ]
     
-    # 2. Build context for LLM
     context = _build_context(papers)
     
-    # 3. Generate findings
     on_progress(ProgressStep.GENERATING_FINDINGS, "Generating research findings...", f"Analyzing {len(papers)} papers")
     findings_data = _generate_findings(question, context)
     
-    # 4. Extract protocols
     on_progress(ProgressStep.EXTRACTING_PROTOCOLS, "Extracting protocols...", None)
     protocols_data = _extract_protocols(question, context)
     
-    # 5. Compile report
     key_findings = [
         Finding(
             statement=f.statement,
@@ -120,7 +113,7 @@ def generate_report(
         protocols=protocols,
         limitations=findings_data.limitations,
         sources=sources,
-        total_papers_searched=len(papers) * 5,  # Approximate
+        total_papers_searched=len(papers) * 5,
         papers_used=len(papers)
     )
     

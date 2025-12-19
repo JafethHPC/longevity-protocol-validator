@@ -16,13 +16,10 @@ app = FastAPI(
     version="3.0.0"
 )
 
-# Include API routers
 app.include_router(reports_router)
 
-# Static files for PDFs/figures
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# CORS configuration
 origins = [
     "http://localhost:4200",
     "http://localhost:58766",

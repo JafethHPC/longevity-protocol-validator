@@ -10,10 +10,6 @@ from typing import List, Optional
 from datetime import datetime
 
 
-# =============================================================================
-# Core Data Models (used in API responses)
-# =============================================================================
-
 class Source(BaseModel):
     """A research paper source"""
     index: int
@@ -51,24 +47,17 @@ class ResearchReport(BaseModel):
     question: str = Field(description="The original research question")
     generated_at: datetime = Field(default_factory=datetime.now)
     
-    # Report sections
     executive_summary: str = Field(description="Brief 2-3 sentence summary of findings")
     key_findings: List[Finding] = Field(description="Main findings with citations")
     detailed_analysis: str = Field(description="Full analysis with inline citations [1], [2], etc.")
     protocols: List[Protocol] = Field(description="Extracted protocols/interventions")
     limitations: str = Field(description="Limitations of the available evidence")
     
-    # Sources
     sources: List[Source] = Field(description="All sources used in the report")
     
-    # Metadata
     total_papers_searched: int = Field(default=0)
     papers_used: int = Field(default=0)
 
-
-# =============================================================================
-# API Request Models
-# =============================================================================
 
 class ReportRequest(BaseModel):
     """Request to generate a new report"""
@@ -81,10 +70,6 @@ class FollowUpRequest(BaseModel):
     report_id: str = Field(description="ID of the existing report")
     question: str = Field(description="Follow-up question")
 
-
-# =============================================================================
-# LLM Structured Output Models (for parsing LLM responses)
-# =============================================================================
 
 class FindingItem(BaseModel):
     """A single finding item for LLM structured output"""

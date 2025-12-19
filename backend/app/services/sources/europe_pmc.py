@@ -26,8 +26,8 @@ def search_europe_pmc(query: str, max_results: int = 50) -> List[Dict]:
         "query": query,
         "format": "json",
         "pageSize": min(max_results, 100),
-        "resultType": "core",  # Get full metadata including abstract
-        "sort": "CITED desc"  # Sort by citation count
+        "resultType": "core",
+        "sort": "CITED desc"
     }
     
     try:

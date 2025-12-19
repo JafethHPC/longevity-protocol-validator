@@ -45,21 +45,17 @@ def search_crossref(query: str, max_results: int = 50) -> List[Dict]:
         
         for item in data.get("message", {}).get("items", []):
             abstract = item.get("abstract", "")
-            # CrossRef abstracts often have XML tags, strip them
             if abstract:
                 abstract = re.sub(r'<[^>]+>', '', abstract).strip()
             
             if not abstract or len(abstract) < 100:
                 continue
             
-            # Get title (it's a list)
             title = item.get("title", [""])[0] if item.get("title") else ""
             
-            # Get journal name
             container = item.get("container-title", [""])
             journal = container[0] if container else ""
             
-            # Get year from published date
             published = item.get("published", {}).get("date-parts", [[0]])
             year = published[0][0] if published and published[0] else 0
             
@@ -68,7 +64,7 @@ def search_crossref(query: str, max_results: int = 50) -> List[Dict]:
                 "abstract": abstract,
                 "journal": journal,
                 "year": year,
-                "pmid": "",  # CrossRef doesn't have PMID
+                "pmid": "",
                 "source": "CrossRef",
                 "is_review": False,
                 "citation_count": item.get("is-referenced-by-count", 0) or 0,
