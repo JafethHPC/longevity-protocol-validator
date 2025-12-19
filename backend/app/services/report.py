@@ -14,7 +14,6 @@ from app.schemas.report import (
     FindingItem, ProtocolItem, ReportFindings, ExtractedProtocols
 )
 from app.services.retrieval import enhanced_retrieval
-from app.services.ingestion import ingest_paper_batch
 
 
 def generate_report(question: str, max_sources: int = 10) -> ResearchReport:
@@ -47,16 +46,6 @@ def generate_report(question: str, max_sources: int = 10) -> ResearchReport:
             total_papers_searched=0,
             papers_used=0
         )
-    
-    # Ingest papers into Weaviate for future RAG
-    papers_for_ingest = [{
-        "title": p['title'],
-        "abstract": p['abstract'],
-        "journal": p.get('journal', ''),
-        "year": p.get('year', 0),
-        "source_id": p.get('pmid', '')
-    } for p in papers]
-    ingest_paper_batch(papers_for_ingest)
     
     # Convert papers to Source objects
     sources = [
