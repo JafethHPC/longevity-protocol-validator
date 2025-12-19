@@ -4,7 +4,7 @@ Report Generation Service
 Generates structured research reports from retrieved papers.
 """
 import uuid
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Callable
 from datetime import datetime
 from langchain_openai import ChatOpenAI
 
@@ -13,10 +13,19 @@ from app.schemas.report import (
     ResearchReport, Source, Finding, Protocol,
     FindingItem, ProtocolItem, ReportFindings, ExtractedProtocols
 )
-from app.services.retrieval import enhanced_retrieval
+from app.schemas.events import ProgressStep
+from app.services.retrieval import enhanced_retrieval, ProgressCallback
+
+# Default no-op callback
+def _noop_callback(step: ProgressStep, message: str, detail: Optional[str] = None):
+    pass
 
 
-def generate_report(question: str, max_sources: int = 10) -> ResearchReport:
+def generate_report(
+    question: str, 
+    max_sources: int = 10,
+    on_progress: ProgressCallback = _noop_callback
+) -> ResearchReport:
     """
     Generate a complete research report for a given question.
     
@@ -25,13 +34,18 @@ def generate_report(question: str, max_sources: int = 10) -> ResearchReport:
     2. Generate structured findings from papers
     3. Extract protocols
     4. Compile into report
+    
+    Args:
+        question: The research question
+        max_sources: Maximum number of sources to include
+        on_progress: Callback for progress updates
     """
     print(f"\n{'='*60}")
     print(f"GENERATING REPORT: {question}")
     print(f"{'='*60}\n")
     
-    # 1. Retrieve papers
-    papers = enhanced_retrieval(question, max_final_papers=max_sources)
+    # 1. Retrieve papers (with progress callbacks)
+    papers = enhanced_retrieval(question, max_final_papers=max_sources, on_progress=on_progress)
     
     if not papers:
         return ResearchReport(
@@ -67,9 +81,11 @@ def generate_report(question: str, max_sources: int = 10) -> ResearchReport:
     context = _build_context(papers)
     
     # 3. Generate findings
+    on_progress(ProgressStep.GENERATING_FINDINGS, "Generating research findings...", f"Analyzing {len(papers)} papers")
     findings_data = _generate_findings(question, context)
     
     # 4. Extract protocols
+    on_progress(ProgressStep.EXTRACTING_PROTOCOLS, "Extracting protocols...", None)
     protocols_data = _extract_protocols(question, context)
     
     # 5. Compile report

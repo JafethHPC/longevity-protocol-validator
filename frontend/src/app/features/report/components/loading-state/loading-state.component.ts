@@ -1,42 +1,177 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ResearchProgress, ProgressStep } from '../../../../core/models';
 
 @Component({
-  selector: 'app-loading-state',
+  selector: 'app-research-progress',
   standalone: true,
   imports: [CommonModule],
   template: `
     <div
-      class="flex flex-col items-center justify-center py-20 animate-fade-in"
+      class="flex flex-col items-center justify-center py-12 animate-fade-in"
     >
-      <div class="relative">
-        <!-- Outer ring -->
-        <div class="w-16 h-16 border-4 border-stone-200 rounded-full"></div>
-        <!-- Spinning ring -->
+      <!-- Header -->
+      <div class="text-center mb-8">
         <div
-          class="absolute top-0 left-0 w-16 h-16 border-4 border-emerald-600 rounded-full border-t-transparent animate-spin"
-        ></div>
-      </div>
-
-      <p class="mt-6 text-lg text-stone-600">{{ message }}</p>
-
-      <div class="mt-4 flex items-center gap-2 text-sm text-stone-500">
-        <svg
-          class="w-4 h-4 text-emerald-600"
-          fill="currentColor"
-          viewBox="0 0 20 20"
+          class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg"
         >
-          <path
-            fill-rule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-            clip-rule="evenodd"
-          />
-        </svg>
-        <span>Searching PubMed & Semantic Scholar</span>
+          <svg
+            class="w-8 h-8 text-white animate-pulse"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+            />
+          </svg>
+        </div>
+        <h2 class="text-xl font-semibold text-stone-800">
+          Researching Scientific Literature
+        </h2>
+        <p class="text-sm text-stone-500 mt-1">
+          Analyzing multiple databases to find relevant papers
+        </p>
       </div>
+
+      <!-- Progress Steps -->
+      <div
+        class="w-full max-w-md bg-white rounded-xl shadow-sm border border-stone-200 p-6"
+      >
+        <div class="space-y-3">
+          @for (step of progress.steps; track step.id) {
+          <div class="flex items-center gap-3">
+            <!-- Status Icon -->
+            <div class="flex-shrink-0 w-6 h-6">
+              @switch (step.status) { @case ('complete') {
+              <div
+                class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center"
+              >
+                <svg
+                  class="w-4 h-4 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              } @case ('active') {
+              <div
+                class="w-6 h-6 rounded-full border-2 border-emerald-500 flex items-center justify-center"
+              >
+                <div
+                  class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"
+                ></div>
+              </div>
+              } @case ('error') {
+              <div
+                class="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center"
+              >
+                <svg
+                  class="w-4 h-4 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </div>
+              } @default {
+              <div class="w-6 h-6 rounded-full border-2 border-stone-300"></div>
+              } }
+            </div>
+
+            <!-- Step Label -->
+            <div class="flex-grow min-w-0">
+              <p
+                [class]="getStepTextClass(step.status)"
+                class="text-sm font-medium truncate"
+              >
+                {{ step.label }}
+              </p>
+            </div>
+
+            <!-- Step Detail -->
+            @if (step.detail && (step.status === 'complete' || step.status ===
+            'active')) {
+            <span
+              class="text-xs text-emerald-600 font-medium whitespace-nowrap"
+            >
+              {{ step.detail }}
+            </span>
+            }
+          </div>
+          }
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mt-6">
+          <div
+            class="flex items-center justify-between text-xs text-stone-500 mb-2"
+          >
+            <span>Progress</span>
+            <span>{{ progress.progressPercent }}%</span>
+          </div>
+          <div class="h-2 bg-stone-200 rounded-full overflow-hidden">
+            <div
+              class="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-500 ease-out"
+              [style.width.%]="progress.progressPercent"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tip -->
+      <p class="mt-6 text-sm text-stone-400">
+        This typically takes 30-60 seconds
+      </p>
     </div>
   `,
+  styles: [
+    `
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .animate-fade-in {
+        animation: fade-in 0.3s ease-out;
+      }
+    `,
+  ],
 })
-export class LoadingStateComponent {
-  @Input() message = 'Generating report...';
+export class ResearchProgressComponent {
+  @Input({ required: true }) progress!: ResearchProgress;
+
+  getStepTextClass(status: string): string {
+    switch (status) {
+      case 'complete':
+        return 'text-emerald-700';
+      case 'active':
+        return 'text-stone-800';
+      case 'error':
+        return 'text-red-600';
+      default:
+        return 'text-stone-400';
+    }
+  }
 }

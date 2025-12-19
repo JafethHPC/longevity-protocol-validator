@@ -4,6 +4,7 @@ Schemas Module
 Contains all Pydantic models (DTOs) for:
 - API request/response validation
 - LLM structured outputs
+- SSE streaming events
 
 Note: If you add a database later, ORM models would go in app/models/
 """
@@ -23,6 +24,13 @@ from .report import (
     ReportFindings,
     ExtractedProtocols,
 )
+from .events import (
+    ProgressStep,
+    ProgressEvent,
+    ErrorEvent,
+    CompleteEvent,
+    STEP_CONFIG,
+)
 
 __all__ = [
     # Retrieval schemas
@@ -41,4 +49,10 @@ __all__ = [
     "ProtocolItem", 
     "ReportFindings",
     "ExtractedProtocols",
+    # Events
+    "ProgressStep",
+    "ProgressEvent",
+    "ErrorEvent",
+    "CompleteEvent",
+    "STEP_CONFIG",
 ]

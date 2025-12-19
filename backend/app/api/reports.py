@@ -45,32 +45,95 @@ async def create_report(request: ReportRequest):
 async def create_report_stream(request: ReportRequest):
     """
     Generate a report with streaming progress updates.
-    Sends Server-Sent Events with status updates during generation.
+    Sends Server-Sent Events with granular status updates during generation.
+    
+    Event types:
+    - progress: Step-by-step progress updates with percentage
+    - report: The final generated report
+    - complete: Signal that streaming is done
+    - error: Error if something fails
     """
-    async def event_generator():
+    import queue
+    import threading
+    from typing import Optional
+    from app.schemas.events import ProgressStep, ProgressEvent, STEP_CONFIG
+    
+    # Thread-safe queue for progress events
+    progress_queue: queue.Queue = queue.Queue()
+    report_result = {"report": None, "error": None}
+    
+    def progress_callback(step: ProgressStep, message: str, detail: Optional[str] = None):
+        """Callback that puts progress events into the queue."""
+        config = STEP_CONFIG.get(step, {"progress": 0})
+        event = ProgressEvent(
+            step=step,
+            message=message,
+            detail=detail,
+            progress_percent=config["progress"]
+        )
+        progress_queue.put(event)
+    
+    def run_generation():
+        """Run the synchronous report generation in a thread."""
         try:
-            # Send initial status
-            yield f"event: status\ndata: {json.dumps({'message': 'Searching scientific databases...'})}\n\n"
-            await asyncio.sleep(0.1)
-            
-            # Generate the report (this is synchronous, but we wrap it)
-            loop = asyncio.get_event_loop()
-            report = await loop.run_in_executor(
-                None,
-                lambda: generate_report(request.question, request.max_sources)
+            report = generate_report(
+                request.question,
+                request.max_sources,
+                on_progress=progress_callback
             )
-            
-            # Cache it
-            _report_cache[report.id] = report
-            
-            # Send the complete report
-            yield f"event: report\ndata: {report.model_dump_json()}\n\n"
-            
-            # Send completion
-            yield f"event: complete\ndata: {json.dumps({'report_id': report.id})}\n\n"
-            
+            report_result["report"] = report
         except Exception as e:
-            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+            report_result["error"] = str(e)
+        finally:
+            # Signal completion
+            progress_queue.put(None)
+    
+    async def event_generator():
+        """Async generator that yields SSE events."""
+        # Start generation in background thread
+        thread = threading.Thread(target=run_generation, daemon=True)
+        thread.start()
+        
+        # Yield progress events as they come in
+        while True:
+            try:
+                # Check for events with timeout
+                event = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: progress_queue.get(timeout=0.1)
+                )
+                
+                if event is None:
+                    # Generation complete
+                    break
+                
+                # Yield progress event
+                event_data = {
+                    "step": event.step.value,
+                    "message": event.message,
+                    "detail": event.detail,
+                    "progress": event.progress_percent
+                }
+                yield f"event: progress\ndata: {json.dumps(event_data)}\n\n"
+                
+            except queue.Empty:
+                # No event yet, continue waiting
+                continue
+        
+        # Wait for thread to finish
+        thread.join(timeout=5.0)
+        
+        # Check for errors
+        if report_result["error"]:
+            yield f"event: error\ndata: {json.dumps({'error': report_result['error']})}\n\n"
+            return
+        
+        # Send the complete report
+        report = report_result["report"]
+        if report:
+            _report_cache[report.id] = report
+            yield f"event: report\ndata: {report.model_dump_json()}\n\n"
+            yield f"event: complete\ndata: {json.dumps({'report_id': report.id})}\n\n"
     
     return StreamingResponse(
         event_generator(),
@@ -79,6 +142,7 @@ async def create_report_stream(request: ReportRequest):
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "Access-Control-Allow-Origin": "*",
+            "X-Accel-Buffering": "no",
         }
     )
 

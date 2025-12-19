@@ -7,12 +7,13 @@ Provides improved paper retrieval by:
 3. Ranking by semantic similarity + citation count
 4. LLM-based relevance filtering
 """
-from typing import List, Dict
+from typing import List, Dict, Callable, Optional
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 import numpy as np
 
 from app.core.config import settings
 from app.schemas.retrieval import OptimizedQueries, PaperRelevance
+from app.schemas.events import ProgressStep
 from app.services.sources import (
     search_pubmed,
     search_openalex,
@@ -20,9 +21,19 @@ from app.services.sources import (
     search_crossref,
 )
 
+# Type alias for progress callback
+ProgressCallback = Callable[[ProgressStep, str, Optional[str]], None]
 
-def optimize_query(user_query: str) -> OptimizedQueries:
+
+def _noop_callback(step: ProgressStep, message: str, detail: Optional[str] = None):
+    """Default no-op callback when none provided."""
+    pass
+
+
+def optimize_query(user_query: str, on_progress: ProgressCallback = _noop_callback) -> OptimizedQueries:
     """Convert user question into optimized search queries for PubMed and Semantic Scholar."""
+    on_progress(ProgressStep.OPTIMIZING, "Optimizing search queries...", None)
+    
     llm = ChatOpenAI(
         model="gpt-4o-mini", 
         temperature=0, 
@@ -82,11 +93,17 @@ def deduplicate_papers(papers: List[Dict]) -> List[Dict]:
     return unique_papers
 
 
-def rank_by_relevance(papers: List[Dict], query: str, top_k: int = 20) -> List[Dict]:
+def rank_by_relevance(
+    papers: List[Dict], 
+    query: str, 
+    top_k: int = 20,
+    on_progress: ProgressCallback = _noop_callback
+) -> List[Dict]:
     """Rank papers by semantic similarity to the query + citation count."""
     if not papers:
         return []
     
+    on_progress(ProgressStep.RANKING, "Ranking papers by relevance...", f"{len(papers)} papers to analyze")
     print(f"---RANKING {len(papers)} PAPERS BY RELEVANCE---")
     
     embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY)
@@ -116,11 +133,17 @@ def rank_by_relevance(papers: List[Dict], query: str, top_k: int = 20) -> List[D
     return ranked[:top_k]
 
 
-def filter_by_llm_relevance(papers: List[Dict], user_query: str, max_papers: int = 10) -> List[Dict]:
+def filter_by_llm_relevance(
+    papers: List[Dict], 
+    user_query: str, 
+    max_papers: int = 10,
+    on_progress: ProgressCallback = _noop_callback
+) -> List[Dict]:
     """Use LLM to filter papers based on actual relevance to the question."""
     if len(papers) <= max_papers:
         return papers
     
+    on_progress(ProgressStep.FILTERING, "Filtering papers with AI...", f"Analyzing top {len(papers)} papers")
     print(f"---LLM FILTERING {len(papers)} PAPERS---")
     
     llm = ChatOpenAI(
@@ -162,9 +185,13 @@ Be inclusive - if there's useful related information, mark as relevant."""
     return relevant_papers
 
 
-def enhanced_retrieval(user_query: str, max_final_papers: int = 10) -> List[Dict]:
+def enhanced_retrieval(
+    user_query: str, 
+    max_final_papers: int = 10,
+    on_progress: ProgressCallback = _noop_callback
+) -> List[Dict]:
     """
-    Full enhanced retrieval pipeline:
+    Full enhanced retrieval pipeline with progress callbacks:
     1. Optimize query
     2. Search multiple sources
     3. Deduplicate
@@ -174,13 +201,15 @@ def enhanced_retrieval(user_query: str, max_final_papers: int = 10) -> List[Dict
     Args:
         user_query: The research question from the user
         max_final_papers: Maximum number of papers to return
+        on_progress: Callback function for progress updates
     """
     print(f"\n{'='*60}")
     print(f"ENHANCED RETRIEVAL: {user_query}")
     print(f"Target papers: {max_final_papers}")
     print(f"{'='*60}\n")
     
-    optimized = optimize_query(user_query)
+    # Step 1: Optimize query
+    optimized = optimize_query(user_query, on_progress)
     
     # Search 4 reliable sources
     per_source_max = 30
@@ -188,15 +217,30 @@ def enhanced_retrieval(user_query: str, max_final_papers: int = 10) -> List[Dict
     print(f"---SEARCH LIMITS: {per_source_max} papers per source---")
     print(f"---SOURCES: PubMed, OpenAlex, Europe PMC, CrossRef---")
     
-    # Primary searches with optimized queries
+    # Step 2: Search PubMed
+    on_progress(ProgressStep.SEARCHING_PUBMED, "Searching PubMed...", None)
     pubmed_papers = search_pubmed(optimized.pubmed_query, max_results=per_source_max)
-    openalex_papers = search_openalex(optimized.semantic_query, max_results=per_source_max)
-    europepmc_papers = search_europe_pmc(optimized.semantic_query, max_results=per_source_max)
-    crossref_papers = search_crossref(optimized.semantic_query, max_results=per_source_max)
+    on_progress(ProgressStep.SEARCHING_PUBMED, "Searched PubMed", f"Found {len(pubmed_papers)} papers")
     
-    # Additional concept-based searches for better coverage
+    # Step 3: Search OpenAlex
+    on_progress(ProgressStep.SEARCHING_OPENALEX, "Searching OpenAlex...", None)
+    openalex_papers = search_openalex(optimized.semantic_query, max_results=per_source_max)
+    on_progress(ProgressStep.SEARCHING_OPENALEX, "Searched OpenAlex", f"Found {len(openalex_papers)} papers")
+    
+    # Step 4: Search Europe PMC
+    on_progress(ProgressStep.SEARCHING_EUROPEPMC, "Searching Europe PMC...", None)
+    europepmc_papers = search_europe_pmc(optimized.semantic_query, max_results=per_source_max)
+    on_progress(ProgressStep.SEARCHING_EUROPEPMC, "Searched Europe PMC", f"Found {len(europepmc_papers)} papers")
+    
+    # Step 5: Search CrossRef
+    on_progress(ProgressStep.SEARCHING_CROSSREF, "Searching CrossRef...", None)
+    crossref_papers = search_crossref(optimized.semantic_query, max_results=per_source_max)
+    on_progress(ProgressStep.SEARCHING_CROSSREF, "Searched CrossRef", f"Found {len(crossref_papers)} papers")
+    
+    # Step 6: Concept-based searches
     concept_query = " ".join(optimized.key_concepts[:3])
     print(f"---CONCEPT SEARCH: {concept_query}---")
+    on_progress(ProgressStep.CONCEPT_SEARCH, "Running additional concept searches...", None)
     
     pubmed_concept = search_pubmed(concept_query, max_results=per_source_max)
     openalex_concept = search_openalex(concept_query, max_results=per_source_max)
@@ -215,13 +259,18 @@ def enhanced_retrieval(user_query: str, max_final_papers: int = 10) -> List[Dict
     if not all_papers:
         return []
     
+    # Step 7: Deduplicate
+    on_progress(ProgressStep.DEDUPLICATING, "Removing duplicate papers...", f"{len(all_papers)} total papers")
     unique_papers = deduplicate_papers(all_papers)
     print(f"---AFTER DEDUP: {len(unique_papers)}---")
+    on_progress(ProgressStep.DEDUPLICATING, "Removed duplicates", f"{len(unique_papers)} unique papers")
     
-    # Rank more papers to give LLM filter a better pool
+    # Step 8: Rank by relevance
     top_k_for_ranking = min(len(unique_papers), max_final_papers * 2)
-    ranked_papers = rank_by_relevance(unique_papers, user_query, top_k=top_k_for_ranking)
-    final_papers = filter_by_llm_relevance(ranked_papers, user_query, max_papers=max_final_papers)
+    ranked_papers = rank_by_relevance(unique_papers, user_query, top_k=top_k_for_ranking, on_progress=on_progress)
+    
+    # Step 9: LLM filter
+    final_papers = filter_by_llm_relevance(ranked_papers, user_query, max_papers=max_final_papers, on_progress=on_progress)
     
     print(f"\n---FINAL PAPERS: {len(final_papers)}---")
     for i, p in enumerate(final_papers, 1):

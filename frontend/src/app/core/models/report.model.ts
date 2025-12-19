@@ -69,7 +69,11 @@ export interface FollowUpResponse {
 }
 
 // Stream event types for report generation
-export type ReportStreamEventType = 'status' | 'report' | 'complete' | 'error';
+export type ReportStreamEventType =
+  | 'progress'
+  | 'report'
+  | 'complete'
+  | 'error';
 
 export interface ReportStreamEvent {
   type: ReportStreamEventType;

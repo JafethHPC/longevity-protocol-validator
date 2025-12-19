@@ -8,7 +8,7 @@ import {
 } from '../../shared/components/tab-bar/tab-bar.component';
 import {
   SearchInputComponent,
-  LoadingStateComponent,
+  ResearchProgressComponent,
   ReportHeaderComponent,
   FindingsTabComponent,
   ProtocolsTabComponent,
@@ -23,7 +23,7 @@ import {
     CommonModule,
     TabBarComponent,
     SearchInputComponent,
-    LoadingStateComponent,
+    ResearchProgressComponent,
     ReportHeaderComponent,
     FindingsTabComponent,
     ProtocolsTabComponent,
@@ -101,10 +101,10 @@ import {
           (search)="generateReport($event)"
         />
 
-        <!-- Loading State -->
-        <app-loading-state
+        <!-- Loading State with Progress -->
+        <app-research-progress
           *ngIf="state.isLoading()"
-          [message]="state.loadingMessage()"
+          [progress]="state.progress()"
         />
 
         <!-- Report Display -->
@@ -181,23 +181,26 @@ export class ReportPageComponent {
   });
 
   generateReport(question: string): void {
-    this.state.setLoading(true, 'Searching scientific databases...');
+    this.state.setLoading(true, 'Initializing research...');
     this.reportService.resetReport();
 
     this.reportService.generateReport(question).subscribe({
       next: (event) => {
-        if (event.type === 'status') {
-          this.state.setLoading(true, event.data.message);
+        if (event.type === 'progress') {
+          // Update progress state with granular step info
+          this.state.updateProgress(event.data);
         } else if (event.type === 'report') {
           this.state.setReport(event.data);
           this.state.setLoading(false);
         } else if (event.type === 'error') {
-          this.state.setError(event.data.message);
+          this.state.setError(event.data.message || event.data.error);
+          this.state.setProgressError(event.data.message || event.data.error);
           this.state.setLoading(false);
         }
       },
       error: (err) => {
         this.state.setError(err.message);
+        this.state.setProgressError(err.message);
         this.state.setLoading(false);
       },
     });
