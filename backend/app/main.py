@@ -7,7 +7,10 @@ Research Report Generator API
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
+
 from app.core.config import settings
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.api.reports import router as reports_router
 from app.services.cache import report_cache
 
@@ -16,6 +19,9 @@ app = FastAPI(
     description="AI-powered scientific literature analysis and report generation",
     version="3.0.0"
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 app.include_router(reports_router)
 
@@ -46,6 +52,10 @@ async def health_check():
         "cache": {
             "type": "redis" if report_cache.is_connected else "in-memory",
             "connected": report_cache.is_connected
+        },
+        "rate_limiting": {
+            "enabled": True,
+            "storage": "redis" if report_cache.is_connected else "memory"
         },
         "endpoints": {
             "generate_report": "/api/reports/generate",

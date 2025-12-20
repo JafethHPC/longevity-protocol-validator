@@ -4,7 +4,7 @@ Report API Routes
 FastAPI routes for generating and querying research reports.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse, Response
 import json
 import asyncio
@@ -13,20 +13,30 @@ from app.schemas.report import ReportRequest, FollowUpRequest, ResearchReport
 from app.services.report import generate_report, generate_followup_answer
 from app.services.pdf_export import generate_report_pdf
 from app.services.cache import report_cache
+from app.core.rate_limit import (
+    limiter, 
+    REPORT_GENERATE_LIMIT, 
+    REPORT_GET_LIMIT, 
+    FOLLOWUP_LIMIT, 
+    PDF_EXPORT_LIMIT
+)
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
 @router.post("/generate", response_model=ResearchReport)
-async def create_report(request: ReportRequest):
+@limiter.limit(REPORT_GENERATE_LIMIT)
+async def create_report(request: Request, body: ReportRequest):
     """
     Generate a new research report for a given question.
     Returns a structured report with findings, protocols, and sources.
+    
+    Rate limit: 3 requests per minute.
     """
     try:
         report = generate_report(
-            question=request.question,
-            max_sources=request.max_sources
+            question=body.question,
+            max_sources=body.max_sources
         )
         
         report_cache.set(report)
@@ -38,10 +48,13 @@ async def create_report(request: ReportRequest):
 
 
 @router.post("/generate/stream")
-async def create_report_stream(request: ReportRequest):
+@limiter.limit(REPORT_GENERATE_LIMIT)
+async def create_report_stream(request: Request, body: ReportRequest):
     """
     Generate a report with streaming progress updates.
     Sends Server-Sent Events with granular status updates during generation.
+    
+    Rate limit: 3 requests per minute.
     
     Event types:
     - progress: Step-by-step progress updates with percentage
@@ -72,8 +85,8 @@ async def create_report_stream(request: ReportRequest):
         """Run the synchronous report generation in a thread."""
         try:
             report = generate_report(
-                request.question,
-                request.max_sources,
+                body.question,
+                body.max_sources,
                 on_progress=progress_callback
             )
             report_result["report"] = report
@@ -133,9 +146,12 @@ async def create_report_stream(request: ReportRequest):
 
 
 @router.get("/{report_id}", response_model=ResearchReport)
-async def get_report(report_id: str):
+@limiter.limit(REPORT_GET_LIMIT)
+async def get_report(request: Request, report_id: str):
     """
     Retrieve a previously generated report by ID.
+    
+    Rate limit: 30 requests per minute.
     """
     report = report_cache.get(report_id)
     if not report:
@@ -145,19 +161,22 @@ async def get_report(report_id: str):
 
 
 @router.post("/{report_id}/followup")
-async def ask_followup(report_id: str, request: FollowUpRequest):
+@limiter.limit(FOLLOWUP_LIMIT)
+async def ask_followup(request: Request, report_id: str, body: FollowUpRequest):
     """
     Ask a follow-up question about an existing report.
     Uses the report's sources to answer.
+    
+    Rate limit: 10 requests per minute.
     """
     report = report_cache.get(report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     
     try:
-        answer = generate_followup_answer(report, request.question)
+        answer = generate_followup_answer(report, body.question)
         return {
-            "question": request.question,
+            "question": body.question,
             "answer": answer,
             "report_id": report_id
         }
@@ -174,9 +193,12 @@ async def list_reports():
 
 
 @router.get("/{report_id}/export/pdf")
-async def export_report_pdf(report_id: str):
+@limiter.limit(PDF_EXPORT_LIMIT)
+async def export_report_pdf_endpoint(request: Request, report_id: str):
     """
     Export a report as a styled PDF document.
+    
+    Rate limit: 5 requests per minute.
     """
     report = report_cache.get(report_id)
     if not report:
