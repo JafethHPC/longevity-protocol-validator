@@ -14,7 +14,7 @@ export class ReportService {
 
   generateReport(
     question: string,
-    maxSources: number = 10
+    maxSources: number = 25
   ): Subject<ReportStreamEvent> {
     const subject = new Subject<ReportStreamEvent>();
     const url = `${this.apiUrl}/api/reports/generate/stream`;

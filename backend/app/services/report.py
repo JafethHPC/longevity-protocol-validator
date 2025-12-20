@@ -22,7 +22,7 @@ def _noop_callback(step: ProgressStep, message: str, detail: Optional[str] = Non
 
 def generate_report(
     question: str, 
-    max_sources: int = 10,
+    max_sources: int = 25,
     on_progress: ProgressCallback = _noop_callback
 ) -> ResearchReport:
     """
@@ -148,24 +148,44 @@ def _generate_findings(question: str, context: str) -> ReportFindings:
         api_key=settings.OPENAI_API_KEY
     ).with_structured_output(ReportFindings, strict=False)
     
-    prompt = f"""You are a scientific research analyst. Based on the following research papers, generate a comprehensive report answering the question.
-
-IMPORTANT RULES:
-1. ONLY use information explicitly stated in the papers
-2. Use inline citations like [1], [2] referring to paper numbers
-3. If papers don't fully answer the question, acknowledge this
-4. Rate confidence based on: number of supporting studies, study quality, consistency of findings
+    prompt = f"""You are a scientific research analyst. Generate a comprehensive, well-cited research report.
 
 QUESTION: {question}
 
 RESEARCH PAPERS:
 {context}
 
-Generate a structured report with:
-- Executive summary (2-3 sentences)
-- Key findings (each with source indices and confidence level)
-- Detailed analysis (comprehensive with inline citations)
-- Limitations of the evidence"""
+CRITICAL CITATION REQUIREMENTS:
+1. Use inline citations like [1], [2], [3] for EVERY factual claim
+2. Aim for at least 2-3 citations per paragraph in the detailed analysis
+3. When multiple papers support a finding, cite ALL of them: [1, 3, 5]
+4. Reference paper numbers that appear in the context above
+
+CONTENT REQUIREMENTS:
+1. Discuss MECHANISMS: Include underlying biological/physiological mechanisms when papers mention them
+2. Cover MULTIPLE ASPECTS: Address different angles of the question (benefits, risks, mechanisms, dosages, populations)
+3. SYNTHESIZE across papers: Compare and contrast findings from different studies
+4. Include SPECIFIC DATA: Mention percentages, effect sizes, dosages when papers provide them
+
+STRUCTURE:
+- Executive summary: 2-3 impactful sentences summarizing the key answer
+- Key findings: 4-6 distinct findings, each with:
+  - A clear statement
+  - Source indices (which papers support this)
+  - Confidence level (high/medium/low based on number and quality of supporting studies)
+- Detailed analysis: 
+  - Comprehensive 400-600 word analysis
+  - Organized by themes/aspects
+  - Heavy use of inline citations [1], [2], etc.
+  - Discuss mechanisms, outcomes, and practical implications
+- Limitations: What gaps exist in the evidence? What populations/aspects are understudied?
+
+QUALITY CHECKLIST:
+✓ Every factual statement has a citation
+✓ Mechanisms are explained where available
+✓ Multiple papers are synthesized together
+✓ Specific numbers/data are included
+✓ Both benefits and limitations are discussed"""
 
     return llm.invoke(prompt)
 

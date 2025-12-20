@@ -62,7 +62,7 @@ class ResearchReport(BaseModel):
 class ReportRequest(BaseModel):
     """Request to generate a new report"""
     question: str = Field(description="The research question to investigate")
-    max_sources: int = Field(default=10, ge=5, le=20)
+    max_sources: int = Field(default=25, ge=5, le=100)
 
 
 class FollowUpRequest(BaseModel):

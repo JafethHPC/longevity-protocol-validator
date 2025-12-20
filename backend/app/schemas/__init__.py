@@ -6,7 +6,7 @@ Contains all Pydantic models (DTOs) for:
 - LLM structured outputs
 - SSE streaming events
 """
-from .retrieval import OptimizedQueries, PaperRelevance
+from .retrieval import OptimizedQueries, PaperRelevance, PaperEvaluation, BatchPaperRelevance
 from .report import (
     Source,
     Finding,
@@ -30,6 +30,8 @@ from .events import (
 __all__ = [
     "OptimizedQueries",
     "PaperRelevance",
+    "PaperEvaluation",
+    "BatchPaperRelevance",
     "Source",
     "Finding",
     "Protocol",
