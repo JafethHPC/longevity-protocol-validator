@@ -15,4 +15,8 @@ class Settings:
     LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY")
     LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "longevity-validator-dev")
 
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REPORT_CACHE_TTL_HOURS: int = int(os.getenv("REPORT_CACHE_TTL_HOURS", "24"))
+
 settings = Settings()

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.api.reports import router as reports_router
+from app.services.cache import report_cache
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -42,6 +43,10 @@ async def health_check():
         "status": "active",
         "project": settings.PROJECT_NAME,
         "version": "3.0.0",
+        "cache": {
+            "type": "redis" if report_cache.is_connected else "in-memory",
+            "connected": report_cache.is_connected
+        },
         "endpoints": {
             "generate_report": "/api/reports/generate",
             "get_report": "/api/reports/{report_id}",

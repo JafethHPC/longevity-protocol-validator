@@ -6,17 +6,15 @@ FastAPI routes for generating and querying research reports.
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse, Response
-from typing import Dict
 import json
 import asyncio
 
 from app.schemas.report import ReportRequest, FollowUpRequest, ResearchReport
 from app.services.report import generate_report, generate_followup_answer
 from app.services.pdf_export import generate_report_pdf
+from app.services.cache import report_cache
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
-
-_report_cache: Dict[str, ResearchReport] = {}
 
 
 @router.post("/generate", response_model=ResearchReport)
@@ -31,7 +29,7 @@ async def create_report(request: ReportRequest):
             max_sources=request.max_sources
         )
         
-        _report_cache[report.id] = report
+        report_cache.set(report)
         
         return report
         
@@ -118,7 +116,7 @@ async def create_report_stream(request: ReportRequest):
         
         report = report_result["report"]
         if report:
-            _report_cache[report.id] = report
+            report_cache.set(report)
             yield f"event: report\ndata: {report.model_dump_json()}\n\n"
             yield f"event: complete\ndata: {json.dumps({'report_id': report.id})}\n\n"
     
@@ -139,10 +137,11 @@ async def get_report(report_id: str):
     """
     Retrieve a previously generated report by ID.
     """
-    if report_id not in _report_cache:
+    report = report_cache.get(report_id)
+    if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     
-    return _report_cache[report_id]
+    return report
 
 
 @router.post("/{report_id}/followup")
@@ -151,10 +150,9 @@ async def ask_followup(report_id: str, request: FollowUpRequest):
     Ask a follow-up question about an existing report.
     Uses the report's sources to answer.
     """
-    if report_id not in _report_cache:
+    report = report_cache.get(report_id)
+    if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    
-    report = _report_cache[report_id]
     
     try:
         answer = generate_followup_answer(report, request.question)
@@ -172,15 +170,7 @@ async def list_reports():
     """
     List all cached reports (basic info only).
     """
-    return [
-        {
-            "id": r.id,
-            "question": r.question,
-            "generated_at": r.generated_at.isoformat(),
-            "papers_used": r.papers_used
-        }
-        for r in _report_cache.values()
-    ]
+    return report_cache.get_all_reports_summary()
 
 
 @router.get("/{report_id}/export/pdf")
@@ -188,10 +178,9 @@ async def export_report_pdf(report_id: str):
     """
     Export a report as a styled PDF document.
     """
-    if report_id not in _report_cache:
+    report = report_cache.get(report_id)
+    if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    
-    report = _report_cache[report_id]
     
     try:
         pdf_bytes = generate_report_pdf(report)
