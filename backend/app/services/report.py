@@ -69,7 +69,8 @@ def generate_report(
             abstract=p['abstract'][:500] + "..." if len(p['abstract']) > 500 else p['abstract'],
             url=p.get('url', f"https://pubmed.ncbi.nlm.nih.gov/{p.get('pmid', '')}/"),
             citation_count=p.get('citation_count', 0),
-            relevance_reason=p.get('relevance_reason')
+            relevance_reason=p.get('relevance_reason'),
+            has_fulltext=p.get('has_fulltext', False)
         )
         for i, p in enumerate(papers)
     ]
@@ -126,15 +127,30 @@ def generate_report(
 
 
 def _build_context(papers: List[Dict]) -> str:
-    """Build context string from papers for LLM."""
+    """
+    Build context string from papers for LLM.
+    Uses full text when available, otherwise falls back to abstract.
+    """
     context_parts = []
+    fulltext_count = 0
+    
     for i, paper in enumerate(papers, 1):
+        if paper.get('has_fulltext') and paper.get('fulltext'):
+            content = paper['fulltext']
+            content_type = "Full Text"
+            fulltext_count += 1
+        else:
+            content = paper.get('abstract', 'No abstract available.')
+            content_type = "Abstract"
+        
         context_parts.append(f"""
-[Paper {i}]
+[Paper {i}] ({content_type})
 Title: {paper['title']}
 Journal: {paper.get('journal', 'N/A')} ({paper.get('year', 'N/A')})
-Abstract: {paper['abstract']}
+{content_type}: {content}
 """)
+    
+    print(f"  Context built: {fulltext_count} with full text, {len(papers) - fulltext_count} with abstract only")
     return "\n".join(context_parts)
 
 

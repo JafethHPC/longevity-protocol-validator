@@ -155,11 +155,22 @@ def generate_report_pdf(report: ResearchReport) -> bytes:
     
     story.append(Paragraph("Detailed Analysis", styles['SectionHeader']))
     
-    analysis_paragraphs = report.detailed_analysis.split('\n\n')
-    for para in analysis_paragraphs:
-        if para.strip():
-            safe_para = _safe_text(para.strip())
-            story.append(Paragraph(safe_para, styles['ReportBody']))
+    analysis_text = report.detailed_analysis
+    paragraphs = analysis_text.split('\n')
+    
+    for para in paragraphs:
+        para = para.strip()
+        if not para:
+            continue
+        
+        if para.startswith('###') or para.startswith('##') or para.startswith('#'):
+            header_text = para.lstrip('#').strip()
+            safe_header = _safe_text(header_text)
+            story.append(Spacer(1, 10))
+            story.append(Paragraph(f"<b>{safe_header}</b>", styles['ReportBody']))
+        else:
+            formatted_para = _markdown_to_reportlab(para)
+            story.append(Paragraph(formatted_para, styles['ReportBody']))
     
     story.append(Spacer(1, 8))
     
@@ -256,6 +267,34 @@ def _safe_text(text: str) -> str:
     text = text.replace('\u2014', '-')
     text = text.replace('\u2026', '...')
     text = text.replace('\u00a0', ' ')
+    return text
+
+
+def _markdown_to_reportlab(text: str) -> str:
+    """
+    Convert Markdown formatting to ReportLab XML tags.
+    
+    Handles:
+    - ### Headers -> <b>Header</b>
+    - **bold** -> <b>bold</b>
+    - *italic* -> <i>italic</i>
+    - [n] citations -> preserved
+    """
+    import re
+    
+    if not text:
+        return ""
+    
+    text = _safe_text(text)
+    
+    text = re.sub(r'^###\s*(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
+    text = re.sub(r'^##\s*(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
+    text = re.sub(r'^#\s*(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
+    
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    
+    text = re.sub(r'(?<!\*)\*([^*]+)\*(?!\*)', r'<i>\1</i>', text)
+    
     return text
 
 

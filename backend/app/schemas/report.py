@@ -21,6 +21,7 @@ class Source(BaseModel):
     url: str
     citation_count: int = 0
     relevance_reason: Optional[str] = None
+    has_fulltext: bool = False
 
 
 class Finding(BaseModel):
