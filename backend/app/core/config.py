@@ -1,22 +1,67 @@
-import os
-from dotenv import load_dotenv
 from pathlib import Path
+from typing import Optional
+from pydantic import Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-env_path = Path(__file__).resolve().parents[3] / ".env"
-load_dotenv(dotenv_path=env_path)
 
-class Settings:
-    PROJECT_NAME: str = "Longevity Validator"
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parents[3] / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+    
+    project_name: str = "Longevity Validator"
+    
+    openai_api_key: SecretStr = Field(description="OpenAI API key for LLM calls")
+    
+    langchain_tracing_v2: str = "true"
+    langchain_endpoint: str = "https://api.smith.langchain.com"
+    langchain_api_key: Optional[SecretStr] = Field(default=None, description="LangSmith API key for tracing")
+    langchain_project: str = "longevity-validator-dev"
+    
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    report_cache_ttl_hours: int = 24
+    
+    @property
+    def OPENAI_API_KEY(self) -> str:
+        return self.openai_api_key.get_secret_value()
+    
+    @property
+    def LANGCHAIN_API_KEY(self) -> Optional[str]:
+        if self.langchain_api_key:
+            return self.langchain_api_key.get_secret_value()
+        return None
+    
+    @property
+    def PROJECT_NAME(self) -> str:
+        return self.project_name
+    
+    @property
+    def LANGCHAIN_TRACING_V2(self) -> str:
+        return self.langchain_tracing_v2
+    
+    @property
+    def LANGCHAIN_ENDPOINT(self) -> str:
+        return self.langchain_endpoint
+    
+    @property
+    def LANGCHAIN_PROJECT(self) -> str:
+        return self.langchain_project
+    
+    @property
+    def REDIS_HOST(self) -> str:
+        return self.redis_host
+    
+    @property
+    def REDIS_PORT(self) -> int:
+        return self.redis_port
+    
+    @property
+    def REPORT_CACHE_TTL_HOURS(self) -> int:
+        return self.report_cache_ttl_hours
 
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
-
-    LANGCHAIN_TRACING_V2: str = "true"
-    LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
-    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY")
-    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "longevity-validator-dev")
-
-    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
-    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
-    REPORT_CACHE_TTL_HOURS: int = int(os.getenv("REPORT_CACHE_TTL_HOURS", "24"))
 
 settings = Settings()
