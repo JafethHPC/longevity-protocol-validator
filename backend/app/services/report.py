@@ -206,22 +206,37 @@ def _extract_protocols(question: str, context: str) -> ExtractedProtocols:
         api_key=settings.OPENAI_API_KEY
     ).with_structured_output(ExtractedProtocols, strict=False)
     
-    prompt = f"""Extract all specific protocols, interventions, or dosages from these research papers.
+    prompt = f"""Extract ACTIONABLE protocols that answer the research question. Focus on interventions that could be practically implemented.
 
-PRIORITY: Use the STRUCTURED ANALYSES section for precise protocol details.
+RESEARCH QUESTION: {question}
 
-For each protocol, extract:
-- name: Name of the intervention/protocol
-- species: Human, Mouse, Rat, etc.
-- dosage: SPECIFIC dosage (e.g., "500mg", "16:8 eating window", "30 min/day")
-- frequency: How often (if mentioned)
-- duration: Duration of intervention
-- result: The outcome/effect with NUMBERS if available
-- source_index: Which paper number it came from
+CRITICAL RULES - DO NOT EXTRACT:
+❌ Surgical procedures used to create disease models (e.g., "bilateral olfactory bulbectomy", "sciatic nerve ligation")
+❌ Laboratory techniques (e.g., "fecal microbiota transplantation in mice", "gene knockouts")
+❌ Disease induction methods (e.g., "high-fat diet to induce obesity in rats")
+❌ Diagnostic procedures without treatment value
+❌ Protocols without specific dosages or durations
 
-Only extract protocols with specific, actionable information. Include effect sizes in results.
+PRIORITIZE EXTRACTING:
+✓ Human clinical protocols with specific dosages
+✓ Supplements, medications, or lifestyle interventions
+✓ Protocols with measurable outcomes and effect sizes
+✓ Interventions directly relevant to the research question
 
-QUESTION CONTEXT: {question}
+For each protocol, provide:
+- name: Specific intervention name (e.g., "Lactobacillus rhamnosus GG supplementation")
+- species: PRIORITIZE Human studies; only include animal studies if highly relevant
+- dosage: MUST be specific (e.g., "10 billion CFU/day", "500mg twice daily") - skip if not available
+- frequency: How often administered
+- duration: Length of intervention
+- result: Quantitative outcome with numbers (e.g., "32% reduction in depression scores, p<0.01")
+- source_index: Paper reference number
+
+QUALITY FILTER: Only include protocols that:
+1. Are directly relevant to answering "{question}"
+2. Have specific, actionable dosages
+3. Show measurable results
+4. Could realistically be implemented
 
 RESEARCH DATA:
 {context[:60000]}"""
