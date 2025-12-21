@@ -5,13 +5,16 @@ OpenAlex provides access to 250M+ scholarly works.
 - 100,000 calls per day
 - 10 requests per second
 - No API key required
+
+Uses httpx.AsyncClient for non-blocking HTTP requests,
+enabling parallel fetching with other data sources.
 """
 from typing import List, Dict
-import requests
-import time
+import httpx
+import asyncio
 
 
-def search_openalex(query: str, max_results: int = 50) -> List[Dict]:
+async def search_openalex(query: str, max_results: int = 50) -> List[Dict]:
     """
     Search OpenAlex API for papers.
     
@@ -19,6 +22,9 @@ def search_openalex(query: str, max_results: int = 50) -> List[Dict]:
     - 100,000 calls per day
     - 10 requests per second
     - No API key required
+    
+    This is an async function that should be awaited.
+    Use asyncio.gather() to run in parallel with other sources.
     """
     print(f"---SEARCHING OPENALEX: {query[:50]}...---")
     
@@ -36,47 +42,55 @@ def search_openalex(query: str, max_results: int = 50) -> List[Dict]:
     }
     
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=15)
-        
-        if response.status_code == 429:
-            print("  Rate limited, waiting 1 second...")
-            time.sleep(1)
-            response = requests.get(url, params=params, headers=headers, timeout=15)
-        
-        if response.status_code != 200:
-            print(f"  Error: {response.status_code}")
-            return []
-        
-        data = response.json()
-        papers = []
-        
-        for work in data.get("results", []):
-            abstract = _reconstruct_abstract(work.get("abstract_inverted_index"))
-            if not abstract or len(abstract) < 100:
-                continue
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, params=params, headers=headers)
             
-            primary_location = work.get("primary_location") or {}
-            source = primary_location.get("source") or {}
-            journal = source.get("display_name", "")
+            # Handle rate limiting with retry
+            if response.status_code == 429:
+                print("  Rate limited, waiting 1 second...")
+                await asyncio.sleep(1)
+                response = await client.get(url, params=params, headers=headers)
             
-            ids = work.get("ids") or {}
-            pmid = ids.get("pmid", "").replace("https://pubmed.ncbi.nlm.nih.gov/", "").strip("/")
+            if response.status_code != 200:
+                print(f"  Error: {response.status_code}")
+                return []
             
-            papers.append({
-                "title": work.get("title", "") or work.get("display_name", ""),
-                "abstract": abstract,
-                "journal": journal,
-                "year": work.get("publication_year", 0) or 0,
-                "pmid": pmid,
-                "source": "OpenAlex",
-                "is_review": False,
-                "citation_count": work.get("cited_by_count", 0) or 0,
-                "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else work.get("id", "")
-            })
+            data = response.json()
+            papers = []
+            
+            for work in data.get("results", []):
+                abstract = _reconstruct_abstract(work.get("abstract_inverted_index"))
+                if not abstract or len(abstract) < 100:
+                    continue
+                
+                primary_location = work.get("primary_location") or {}
+                source = primary_location.get("source") or {}
+                journal = source.get("display_name", "")
+                
+                # Extract identifiers
+                ids = work.get("ids") or {}
+                pmid = ids.get("pmid", "").replace("https://pubmed.ncbi.nlm.nih.gov/", "").strip("/")
+                doi = ids.get("doi", "").replace("https://doi.org/", "")
+                
+                papers.append({
+                    "title": work.get("title", "") or work.get("display_name", ""),
+                    "abstract": abstract,
+                    "journal": journal,
+                    "year": work.get("publication_year", 0) or 0,
+                    "pmid": pmid,
+                    "doi": doi,
+                    "source": "OpenAlex",
+                    "is_review": False,
+                    "citation_count": work.get("cited_by_count", 0) or 0,
+                    "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else work.get("id", "")
+                })
+            
+            print(f"  Returned {len(papers)} papers with abstracts")
+            return papers
         
-        print(f"  Returned {len(papers)} papers with abstracts")
-        return papers
-        
+    except httpx.TimeoutException:
+        print("  OpenAlex timeout")
+        return []
     except Exception as e:
         print(f"  OpenAlex error: {e}")
         return []

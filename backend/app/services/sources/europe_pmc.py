@@ -5,12 +5,14 @@ Europe PMC provides access to 43M+ life science articles.
 - No API key required
 - Includes preprints from bioRxiv/medRxiv
 - Focus on biomedical and health research
+
+Uses httpx.AsyncClient for non-blocking HTTP requests.
 """
 from typing import List, Dict
-import requests
+import httpx
 
 
-def search_europe_pmc(query: str, max_results: int = 50) -> List[Dict]:
+async def search_europe_pmc(query: str, max_results: int = 50) -> List[Dict]:
     """
     Search Europe PMC for life science papers.
     
@@ -18,6 +20,8 @@ def search_europe_pmc(query: str, max_results: int = 50) -> List[Dict]:
     - No API key required
     - Includes preprints from bioRxiv/medRxiv
     - Focus on biomedical and health research
+    
+    This is an async function - use asyncio.gather() to run in parallel.
     """
     print(f"---SEARCHING EUROPE PMC: {query[:50]}...---")
     
@@ -31,37 +35,43 @@ def search_europe_pmc(query: str, max_results: int = 50) -> List[Dict]:
     }
     
     try:
-        response = requests.get(url, params=params, timeout=15)
-        
-        if response.status_code != 200:
-            print(f"  Error: {response.status_code}")
-            return []
-        
-        data = response.json()
-        papers = []
-        
-        for result in data.get("resultList", {}).get("result", []):
-            abstract = result.get("abstractText", "")
-            if not abstract or len(abstract) < 100:
-                continue
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, params=params)
             
-            pmid = result.get("pmid", "")
+            if response.status_code != 200:
+                print(f"  Error: {response.status_code}")
+                return []
             
-            papers.append({
-                "title": result.get("title", ""),
-                "abstract": abstract,
-                "journal": result.get("journalTitle", ""),
-                "year": int(result.get("pubYear", 0) or 0),
-                "pmid": pmid,
-                "source": "EuropePMC",
-                "is_review": result.get("pubType", "") == "review",
-                "citation_count": int(result.get("citedByCount", 0) or 0),
-                "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else result.get("fullTextUrlList", {}).get("fullTextUrl", [{}])[0].get("url", "")
-            })
+            data = response.json()
+            papers = []
+            
+            for result in data.get("resultList", {}).get("result", []):
+                abstract = result.get("abstractText", "")
+                if not abstract or len(abstract) < 100:
+                    continue
+                
+                pmid = result.get("pmid", "")
+                doi = result.get("doi", "")
+                
+                papers.append({
+                    "title": result.get("title", ""),
+                    "abstract": abstract,
+                    "journal": result.get("journalTitle", ""),
+                    "year": int(result.get("pubYear", 0) or 0),
+                    "pmid": pmid,
+                    "doi": doi,
+                    "source": "EuropePMC",
+                    "is_review": result.get("pubType", "") == "review",
+                    "citation_count": int(result.get("citedByCount", 0) or 0),
+                    "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else result.get("fullTextUrlList", {}).get("fullTextUrl", [{}])[0].get("url", "")
+                })
+            
+            print(f"  Returned {len(papers)} papers with abstracts")
+            return papers
         
-        print(f"  Returned {len(papers)} papers with abstracts")
-        return papers
-        
+    except httpx.TimeoutException:
+        print("  Europe PMC timeout")
+        return []
     except Exception as e:
         print(f"  Europe PMC error: {e}")
         return []

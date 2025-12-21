@@ -2,9 +2,11 @@
 Data sources for scientific paper retrieval.
 
 Each source is implemented in its own module for maintainability.
+All search functions are async for parallel execution.
+
 To add a new source:
 1. Create a new file (e.g., new_source.py)
-2. Implement search_new_source(query, max_results) -> List[Dict]
+2. Implement async search_new_source(query, max_results) -> List[Dict]
 3. Export it here
 4. Add it to the retrieval pipeline in retrieval.py
 """
