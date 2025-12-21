@@ -384,7 +384,7 @@ def enhanced_retrieval(
     
     optimized = optimize_query(user_query, on_progress)
     
-    per_source_max = 50 if max_final_papers >= 25 else 30
+    per_source_max = 100
     concept_query = " ".join(optimized.key_concepts[:3])
     
     print(f"---SEARCH LIMITS: {per_source_max} papers per source---")

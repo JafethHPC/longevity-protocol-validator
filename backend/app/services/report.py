@@ -1,20 +1,16 @@
-"""
-Report Generation Service
-
-Generates structured research reports from retrieved papers.
-"""
 import uuid
-from typing import List, Dict, Optional, Callable
-from datetime import datetime
+from typing import List, Dict, Optional
 from langchain_openai import ChatOpenAI
 
 from app.core.config import settings
 from app.schemas.report import (
     ResearchReport, Source, Finding, Protocol,
-    FindingItem, ProtocolItem, ReportFindings, ExtractedProtocols
+    ReportFindings, ExtractedProtocols
 )
 from app.schemas.events import ProgressStep
 from app.services.retrieval import enhanced_retrieval, ProgressCallback
+from app.services.paper_analysis import analyze_papers_batch, format_analysis_for_context
+
 
 def _noop_callback(step: ProgressStep, message: str, detail: Optional[str] = None):
     pass
@@ -25,20 +21,6 @@ def generate_report(
     max_sources: int = 25,
     on_progress: ProgressCallback = _noop_callback
 ) -> ResearchReport:
-    """
-    Generate a complete research report for a given question.
-    
-    Steps:
-    1. Retrieve relevant papers using enhanced retrieval
-    2. Generate structured findings from papers
-    3. Extract protocols
-    4. Compile into report
-    
-    Args:
-        question: The research question
-        max_sources: Maximum number of sources to include
-        on_progress: Callback for progress updates
-    """
     print(f"\n{'='*60}")
     print(f"GENERATING REPORT: {question}")
     print(f"{'='*60}\n")
@@ -75,9 +57,13 @@ def generate_report(
         for i, p in enumerate(papers)
     ]
     
-    context = _build_context(papers)
+    on_progress(ProgressStep.ANALYZING_PAPERS, "Analyzing papers in depth...", f"Extracting structured data from {len(papers)} papers")
     
-    on_progress(ProgressStep.GENERATING_FINDINGS, "Generating research findings...", f"Analyzing {len(papers)} papers")
+    analyses = analyze_papers_batch(papers, question, max_papers=len(papers))
+    
+    context = _build_context(papers, analyses)
+    
+    on_progress(ProgressStep.GENERATING_FINDINGS, "Generating research findings...", f"Synthesizing insights")
     findings_data = _generate_findings(question, context)
     
     on_progress(ProgressStep.EXTRACTING_PROTOCOLS, "Extracting protocols...", None)
@@ -122,21 +108,24 @@ def generate_report(
     print(f"  Sources: {len(sources)}")
     print(f"  Findings: {len(key_findings)}")
     print(f"  Protocols: {len(protocols)}")
+    print(f"  Deep analyses: {len(analyses)}")
     
     return report
 
 
-def _build_context(papers: List[Dict]) -> str:
-    """
-    Build context string from papers for LLM.
-    Uses full text when available, otherwise falls back to abstract.
-    """
+def _build_context(papers: List[Dict], analyses=None) -> str:
     context_parts = []
     fulltext_count = 0
     
+    analysis_context = ""
+    if analyses:
+        analysis_context = format_analysis_for_context(analyses)
+        context_parts.append("## STRUCTURED PAPER ANALYSES\n\n" + analysis_context)
+        context_parts.append("\n\n## RAW PAPER DATA\n")
+    
     for i, paper in enumerate(papers, 1):
         if paper.get('has_fulltext') and paper.get('fulltext'):
-            content = paper['fulltext']
+            content = paper['fulltext'][:15000]
             content_type = "Full Text"
             fulltext_count += 1
         else:
@@ -151,11 +140,13 @@ Journal: {paper.get('journal', 'N/A')} ({paper.get('year', 'N/A')})
 """)
     
     print(f"  Context built: {fulltext_count} with full text, {len(papers) - fulltext_count} with abstract only")
+    if analyses:
+        print(f"  Structured analyses included: {len(analyses)}")
+    
     return "\n".join(context_parts)
 
 
 def _generate_findings(question: str, context: str) -> ReportFindings:
-    """Generate structured findings from papers."""
     print("---GENERATING FINDINGS---")
     
     llm = ChatOpenAI(
@@ -168,46 +159,45 @@ def _generate_findings(question: str, context: str) -> ReportFindings:
 
 QUESTION: {question}
 
-RESEARCH PAPERS:
-{context}
+RESEARCH DATA:
+{context[:80000]}
 
-CRITICAL CITATION REQUIREMENTS:
+CRITICAL REQUIREMENTS:
 1. Use inline citations like [1], [2], [3] for EVERY factual claim
-2. Aim for at least 2-3 citations per paragraph in the detailed analysis
-3. When multiple papers support a finding, cite ALL of them: [1, 3, 5]
-4. Reference paper numbers that appear in the context above
+2. Use the STRUCTURED ANALYSES section for precise effect sizes, protocols, and mechanisms
+3. Include SPECIFIC NUMBERS: percentages, dosages, sample sizes, p-values from the analyses
+4. When multiple papers support a finding, cite ALL of them: [1, 3, 5]
 
 CONTENT REQUIREMENTS:
-1. Discuss MECHANISMS: Include underlying biological/physiological mechanisms when papers mention them
-2. Cover MULTIPLE ASPECTS: Address different angles of the question (benefits, risks, mechanisms, dosages, populations)
-3. SYNTHESIZE across papers: Compare and contrast findings from different studies
-4. Include SPECIFIC DATA: Mention percentages, effect sizes, dosages when papers provide them
+1. MECHANISMS: Include underlying biological/physiological mechanisms
+2. EFFECT SIZES: Quote specific measurements (e.g., "12.3% improvement in HOMA-IR")
+3. PROTOCOLS: Include specific dosages, durations, and populations
+4. SYNTHESIZE: Compare and contrast findings from different studies
+5. NUANCE: Note conflicting results and populations where effects differ
 
 STRUCTURE:
-- Executive summary: 2-3 impactful sentences summarizing the key answer
-- Key findings: 4-6 distinct findings, each with:
-  - A clear statement
-  - Source indices (which papers support this)
-  - Confidence level (high/medium/low based on number and quality of supporting studies)
+- Executive summary: 2-3 impactful sentences with key numbers
+- Key findings: 4-6 distinct findings with specific data, each with:
+  - A clear statement with numbers
+  - Source indices
+  - Confidence level
 - Detailed analysis: 
-  - Comprehensive 400-600 word analysis
-  - Organized by themes/aspects
-  - Heavy use of inline citations [1], [2], etc.
-  - Discuss mechanisms, outcomes, and practical implications
-- Limitations: What gaps exist in the evidence? What populations/aspects are understudied?
+  - 400-600 words with heavy citations
+  - Include effect sizes and protocol specifics
+  - Discuss mechanisms
+- Limitations: What gaps exist? What populations/aspects need more study?
 
 QUALITY CHECKLIST:
-✓ Every factual statement has a citation
-✓ Mechanisms are explained where available
-✓ Multiple papers are synthesized together
-✓ Specific numbers/data are included
-✓ Both benefits and limitations are discussed"""
+✓ Specific numbers/measurements included
+✓ Protocol details (dosage, duration) mentioned
+✓ Mechanisms explained
+✓ Multiple papers synthesized
+✓ Limitations acknowledged"""
 
     return llm.invoke(prompt)
 
 
 def _extract_protocols(question: str, context: str) -> ExtractedProtocols:
-    """Extract protocols/interventions from papers."""
     print("---EXTRACTING PROTOCOLS---")
     
     llm = ChatOpenAI(
@@ -216,29 +206,30 @@ def _extract_protocols(question: str, context: str) -> ExtractedProtocols:
         api_key=settings.OPENAI_API_KEY
     ).with_structured_output(ExtractedProtocols, strict=False)
     
-    prompt = f"""Extract all specific protocols, interventions, or dosages mentioned in these research papers.
+    prompt = f"""Extract all specific protocols, interventions, or dosages from these research papers.
+
+PRIORITY: Use the STRUCTURED ANALYSES section for precise protocol details.
 
 For each protocol, extract:
 - name: Name of the intervention/protocol
 - species: Human, Mouse, Rat, etc.
-- dosage: Specific dosage if mentioned
+- dosage: SPECIFIC dosage (e.g., "500mg", "16:8 eating window", "30 min/day")
 - frequency: How often (if mentioned)
-- duration: Duration of intervention (if mentioned)
-- result: The outcome/effect
+- duration: Duration of intervention
+- result: The outcome/effect with NUMBERS if available
 - source_index: Which paper number it came from
 
-Only extract protocols with specific, actionable information. Skip vague recommendations.
+Only extract protocols with specific, actionable information. Include effect sizes in results.
 
 QUESTION CONTEXT: {question}
 
-RESEARCH PAPERS:
-{context}"""
+RESEARCH DATA:
+{context[:60000]}"""
 
     return llm.invoke(prompt)
 
 
 def generate_followup_answer(report: ResearchReport, followup_question: str) -> str:
-    """Answer a follow-up question using the report's sources."""
     print(f"---ANSWERING FOLLOW-UP: {followup_question}---")
     
     llm = ChatOpenAI(

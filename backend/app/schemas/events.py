@@ -20,6 +20,7 @@ class ProgressStep(str, Enum):
     DEDUPLICATING = "deduplicating"
     RANKING = "ranking"
     FILTERING = "filtering"
+    ANALYZING_PAPERS = "analyzing_papers"
     GENERATING_FINDINGS = "generating_findings"
     EXTRACTING_PROTOCOLS = "extracting_protocols"
     COMPLETE = "complete"
@@ -56,8 +57,9 @@ STEP_CONFIG = {
     ProgressStep.CONCEPT_SEARCH: {"label": "Running concept searches", "progress": 55},
     ProgressStep.DEDUPLICATING: {"label": "Removing duplicates", "progress": 60},
     ProgressStep.RANKING: {"label": "Ranking by relevance", "progress": 70},
-    ProgressStep.FILTERING: {"label": "Filtering with AI", "progress": 80},
-    ProgressStep.GENERATING_FINDINGS: {"label": "Generating findings", "progress": 90},
+    ProgressStep.FILTERING: {"label": "Filtering with AI", "progress": 75},
+    ProgressStep.ANALYZING_PAPERS: {"label": "Deep paper analysis", "progress": 85},
+    ProgressStep.GENERATING_FINDINGS: {"label": "Generating findings", "progress": 92},
     ProgressStep.EXTRACTING_PROTOCOLS: {"label": "Extracting protocols", "progress": 95},
     ProgressStep.COMPLETE: {"label": "Complete", "progress": 100},
 }
