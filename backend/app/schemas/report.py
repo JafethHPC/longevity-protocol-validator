@@ -22,6 +22,7 @@ class Source(BaseModel):
     citation_count: int = 0
     relevance_reason: Optional[str] = None
     has_fulltext: bool = False
+    source_type: str = "paper"  # "paper" or "clinical_trial"
 
 
 class Finding(BaseModel):
@@ -60,10 +61,68 @@ class ResearchReport(BaseModel):
     papers_used: int = Field(default=0)
 
 
+class SourceConfigRequest(BaseModel):
+    """Configuration for a specific source type"""
+    enabled: bool = Field(default=True, description="Whether this source is enabled")
+    max_results: int = Field(default=100, ge=0, le=500, description="Maximum results to fetch")
+
+
 class ReportRequest(BaseModel):
-    """Request to generate a new report"""
+    """
+    Request to generate a new report.
+    
+    All configuration options are optional - defaults will be used if not specified.
+    This allows users to customize exactly how the research is conducted.
+    """
     question: str = Field(description="The research question to investigate")
-    max_sources: int = Field(default=25, ge=5, le=100)
+    
+    # === OUTPUT LIMITS ===
+    max_sources: int = Field(
+        default=15, 
+        ge=5, 
+        le=50, 
+        description="Maximum total sources in the final report"
+    )
+    min_clinical_trials: int = Field(
+        default=3, 
+        ge=0, 
+        le=10, 
+        description="Minimum number of clinical trials to include (if available)"
+    )
+    min_papers: int = Field(
+        default=5, 
+        ge=0, 
+        le=20, 
+        description="Minimum number of research papers to include"
+    )
+    
+    # === SOURCE CONFIGURATIONS ===
+    pubmed_enabled: bool = Field(default=True, description="Enable PubMed search")
+    pubmed_max_results: int = Field(default=100, ge=0, le=500, description="Max PubMed results")
+    
+    openalex_enabled: bool = Field(default=True, description="Enable OpenAlex search")
+    openalex_max_results: int = Field(default=100, ge=0, le=500, description="Max OpenAlex results")
+    
+    europe_pmc_enabled: bool = Field(default=True, description="Enable Europe PMC search")
+    europe_pmc_max_results: int = Field(default=100, ge=0, le=500, description="Max Europe PMC results")
+    
+    crossref_enabled: bool = Field(default=True, description="Enable CrossRef search")
+    crossref_max_results: int = Field(default=100, ge=0, le=500, description="Max CrossRef results")
+    
+    clinical_trials_enabled: bool = Field(default=True, description="Enable ClinicalTrials.gov search")
+    clinical_trials_max_results: int = Field(default=25, ge=0, le=100, description="Max clinical trials")
+    
+    # === PROCESSING OPTIONS ===
+    clinical_trial_boost: float = Field(
+        default=0.15, 
+        ge=0.0, 
+        le=0.5,
+        description="Relevance score boost for clinical trials (helps them compete with highly-cited papers)"
+    )
+    include_fulltext: bool = Field(
+        default=True,
+        description="Whether to fetch full text for top papers"
+    )
 
 
 class FollowUpRequest(BaseModel):

@@ -4,7 +4,7 @@ Retrieval Schemas
 Pydantic models for the retrieval pipeline (query optimization, relevance filtering).
 """
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 
 
 class OptimizedQueries(BaseModel):
@@ -32,3 +32,56 @@ class BatchPaperRelevance(BaseModel):
     evaluations: List[PaperEvaluation] = Field(
         description="List of relevance evaluations, one for each paper in the batch"
     )
+
+
+class SourceConfig(BaseModel):
+    """Configuration for a specific source type"""
+    enabled: bool = Field(default=True, description="Whether this source is enabled")
+    max_results: int = Field(default=100, ge=0, le=500, description="Maximum results to fetch from this source")
+
+
+class ResearchConfig(BaseModel):
+    """
+    Configuration for the research retrieval pipeline.
+    Controls which sources to use and how many results to fetch from each.
+    """
+    # Final output limits
+    max_final_sources: int = Field(
+        default=15, 
+        ge=5, 
+        le=50, 
+        description="Maximum number of sources in the final report"
+    )
+    min_clinical_trials: int = Field(
+        default=3, 
+        ge=0, 
+        le=10, 
+        description="Minimum number of clinical trials to include (if available)"
+    )
+    min_papers: int = Field(
+        default=5, 
+        ge=0, 
+        le=20, 
+        description="Minimum number of research papers to include"
+    )
+    
+    # Source-specific configurations
+    pubmed: SourceConfig = Field(default_factory=lambda: SourceConfig(enabled=True, max_results=100))
+    openalex: SourceConfig = Field(default_factory=lambda: SourceConfig(enabled=True, max_results=100))
+    europe_pmc: SourceConfig = Field(default_factory=lambda: SourceConfig(enabled=True, max_results=100))
+    crossref: SourceConfig = Field(default_factory=lambda: SourceConfig(enabled=True, max_results=100))
+    clinical_trials: SourceConfig = Field(default_factory=lambda: SourceConfig(enabled=True, max_results=25))
+    
+    # Processing options
+    include_fulltext: bool = Field(default=True, description="Whether to fetch full text for papers")
+    clinical_trial_boost: float = Field(
+        default=0.15, 
+        ge=0.0, 
+        le=0.5, 
+        description="Relevance boost for clinical trials in ranking"
+    )
+    
+    @classmethod
+    def default(cls) -> "ResearchConfig":
+        """Return the default configuration"""
+        return cls()

@@ -10,6 +10,7 @@ import json
 import asyncio
 
 from app.schemas.report import ReportRequest, FollowUpRequest, ResearchReport
+from app.schemas.retrieval import ResearchConfig
 from app.services.report import generate_report, generate_followup_answer
 from app.services.pdf_export import generate_report_pdf
 from app.services.cache import report_cache
@@ -24,6 +25,29 @@ from app.core.rate_limit import (
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
+def _build_config_from_request(body: ReportRequest) -> ResearchConfig:
+    """Build a ResearchConfig directly from the request parameters."""
+    from app.schemas.retrieval import SourceConfig
+    
+    return ResearchConfig(
+        # Output limits
+        max_final_sources=body.max_sources,
+        min_clinical_trials=body.min_clinical_trials,
+        min_papers=body.min_papers,
+        
+        # Source configurations
+        pubmed=SourceConfig(enabled=body.pubmed_enabled, max_results=body.pubmed_max_results),
+        openalex=SourceConfig(enabled=body.openalex_enabled, max_results=body.openalex_max_results),
+        europe_pmc=SourceConfig(enabled=body.europe_pmc_enabled, max_results=body.europe_pmc_max_results),
+        crossref=SourceConfig(enabled=body.crossref_enabled, max_results=body.crossref_max_results),
+        clinical_trials=SourceConfig(enabled=body.clinical_trials_enabled, max_results=body.clinical_trials_max_results),
+        
+        # Processing options
+        include_fulltext=body.include_fulltext,
+        clinical_trial_boost=body.clinical_trial_boost
+    )
+
+
 @router.post("/generate", response_model=ResearchReport)
 @limiter.limit(REPORT_GENERATE_LIMIT)
 async def create_report(request: Request, body: ReportRequest):
@@ -34,9 +58,12 @@ async def create_report(request: Request, body: ReportRequest):
     Rate limit: 3 requests per minute.
     """
     try:
+        config = _build_config_from_request(body)
+        
         report = generate_report(
             question=body.question,
-            max_sources=body.max_sources
+            max_sources=body.max_sources,
+            config=config
         )
         
         report_cache.set(report)
@@ -84,9 +111,12 @@ async def create_report_stream(request: Request, body: ReportRequest):
     def run_generation():
         """Run the synchronous report generation in a thread."""
         try:
+            config = _build_config_from_request(body)
+            
             report = generate_report(
                 body.question,
                 body.max_sources,
+                config=config,
                 on_progress=progress_callback
             )
             report_result["report"] = report

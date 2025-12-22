@@ -2,7 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ResearchReport, ReportStreamEvent, FollowUpResponse } from '../models';
+import {
+  ResearchReport,
+  ReportStreamEvent,
+  FollowUpResponse,
+  ResearchConfig,
+  DEFAULT_RESEARCH_CONFIG,
+} from '../models';
 
 @Injectable({
   providedIn: 'root',
@@ -14,10 +20,13 @@ export class ReportService {
 
   generateReport(
     question: string,
-    maxSources: number = 25
+    config: Partial<ResearchConfig> = {}
   ): Subject<ReportStreamEvent> {
     const subject = new Subject<ReportStreamEvent>();
     const url = `${this.apiUrl}/api/reports/generate/stream`;
+
+    // Merge provided config with defaults
+    const fullConfig = { ...DEFAULT_RESEARCH_CONFIG, ...config };
 
     fetch(url, {
       method: 'POST',
@@ -26,7 +35,21 @@ export class ReportService {
       },
       body: JSON.stringify({
         question: question,
-        max_sources: maxSources,
+        max_sources: fullConfig.max_sources,
+        min_clinical_trials: fullConfig.min_clinical_trials,
+        min_papers: fullConfig.min_papers,
+        pubmed_enabled: fullConfig.pubmed_enabled,
+        pubmed_max_results: fullConfig.pubmed_max_results,
+        openalex_enabled: fullConfig.openalex_enabled,
+        openalex_max_results: fullConfig.openalex_max_results,
+        europe_pmc_enabled: fullConfig.europe_pmc_enabled,
+        europe_pmc_max_results: fullConfig.europe_pmc_max_results,
+        crossref_enabled: fullConfig.crossref_enabled,
+        crossref_max_results: fullConfig.crossref_max_results,
+        clinical_trials_enabled: fullConfig.clinical_trials_enabled,
+        clinical_trials_max_results: fullConfig.clinical_trials_max_results,
+        clinical_trial_boost: fullConfig.clinical_trial_boost,
+        include_fulltext: fullConfig.include_fulltext,
       }),
     })
       .then(async (response) => {

@@ -7,6 +7,7 @@ from app.schemas.report import (
     ResearchReport, Source, Finding, Protocol,
     ReportFindings, ExtractedProtocols
 )
+from app.schemas.retrieval import ResearchConfig
 from app.schemas.events import ProgressStep
 from app.services.retrieval import enhanced_retrieval, ProgressCallback
 from app.services.paper_analysis import analyze_papers_batch, format_analysis_for_context
@@ -19,13 +20,28 @@ def _noop_callback(step: ProgressStep, message: str, detail: Optional[str] = Non
 def generate_report(
     question: str, 
     max_sources: int = 25,
+    config: Optional[ResearchConfig] = None,
     on_progress: ProgressCallback = _noop_callback
 ) -> ResearchReport:
+    """
+    Generate a complete research report for the given question.
+    
+    Args:
+        question: The research question to investigate
+        max_sources: Maximum number of sources in the final report (overridden by config if provided)
+        config: ResearchConfig controlling source quantities and types
+        on_progress: Callback for progress updates
+    """
     print(f"\n{'='*60}")
     print(f"GENERATING REPORT: {question}")
     print(f"{'='*60}\n")
     
-    papers = enhanced_retrieval(question, max_final_papers=max_sources, on_progress=on_progress)
+    papers = enhanced_retrieval(
+        question, 
+        max_final_papers=max_sources, 
+        config=config,
+        on_progress=on_progress
+    )
     
     if not papers:
         return ResearchReport(
@@ -41,21 +57,31 @@ def generate_report(
             papers_used=0
         )
     
-    sources = [
-        Source(
+    sources = []
+    for i, p in enumerate(papers):
+        # Determine if this is a clinical trial
+        is_trial = p.get('type') == 'clinical_trial' or p.get('pmid', '').startswith('NCT')
+        
+        # For clinical trials, use ClinicalTrials.gov URL
+        if is_trial:
+            nct_id = p.get('pmid', '')
+            url = p.get('url', f"https://clinicaltrials.gov/study/{nct_id}")
+        else:
+            url = p.get('url', f"https://pubmed.ncbi.nlm.nih.gov/{p.get('pmid', '')}/")
+        
+        sources.append(Source(
             index=i + 1,
             title=p['title'],
             journal=p.get('journal', ''),
             year=p.get('year', 0),
             pmid=p.get('pmid', ''),
             abstract=p['abstract'][:500] + "..." if len(p['abstract']) > 500 else p['abstract'],
-            url=p.get('url', f"https://pubmed.ncbi.nlm.nih.gov/{p.get('pmid', '')}/"),
+            url=url,
             citation_count=p.get('citation_count', 0),
             relevance_reason=p.get('relevance_reason'),
-            has_fulltext=p.get('has_fulltext', False)
-        )
-        for i, p in enumerate(papers)
-    ]
+            has_fulltext=p.get('has_fulltext', False),
+            source_type="clinical_trial" if is_trial else "paper"
+        ))
     
     on_progress(ProgressStep.ANALYZING_PAPERS, "Analyzing papers in depth...", f"Extracting structured data from {len(papers)} papers")
     

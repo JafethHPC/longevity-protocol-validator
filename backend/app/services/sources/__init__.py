@@ -14,6 +14,11 @@ from .pubmed import search_pubmed
 from .openalex import search_openalex
 from .europe_pmc import search_europe_pmc
 from .crossref import search_crossref
+from .clinicaltrials import (
+    search_clinical_trials,
+    get_trial_by_nct_id,
+    search_trials_with_results
+)
 from .base import Paper
 
 __all__ = [
@@ -21,5 +26,8 @@ __all__ = [
     "search_openalex",
     "search_europe_pmc",
     "search_crossref",
+    "search_clinical_trials",
+    "get_trial_by_nct_id",
+    "search_trials_with_results",
     "Paper",
 ]

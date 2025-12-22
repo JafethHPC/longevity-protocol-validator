@@ -1,18 +1,37 @@
-import { Component, Output, EventEmitter } from '@angular/core';
+import { Component, Output, EventEmitter, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
+import { ResearchSettingsComponent } from '../research-settings/research-settings.component';
+import {
+  ResearchConfig,
+  DEFAULT_RESEARCH_CONFIG,
+} from '../../../../core/models/report.model';
+
+/**
+ * Search request including question and optional config overrides
+ */
+export interface SearchRequest {
+  question: string;
+  config: Partial<ResearchConfig>;
+}
 
 @Component({
   selector: 'app-search-input',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslateModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TranslateModule,
+    ResearchSettingsComponent,
+  ],
   templateUrl: './search-input.component.html',
 })
 export class SearchInputComponent {
-  @Output() search = new EventEmitter<string>();
+  @Output() search = new EventEmitter<SearchRequest>();
 
   query = '';
+  currentConfig = signal<Partial<ResearchConfig>>({});
 
   exampleQueries = [
     {
@@ -40,9 +59,16 @@ export class SearchInputComponent {
     }
   }
 
+  onConfigChange(config: Partial<ResearchConfig>): void {
+    this.currentConfig.set(config);
+  }
+
   submit(): void {
     if (this.query.trim()) {
-      this.search.emit(this.query.trim());
+      this.search.emit({
+        question: this.query.trim(),
+        config: this.currentConfig(),
+      });
     }
   }
 }
