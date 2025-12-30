@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     redis_port: int = 6379
     report_cache_ttl_hours: int = 24
     
+    # API contact email used in User-Agent headers for polite API access
+    api_contact_email: str = Field(
+        default="researcher@example.com",
+        description="Email for API contact/User-Agent (update with your real email)"
+    )
+    
+    @property
+    def API_CONTACT_EMAIL(self) -> str:
+        return self.api_contact_email
+    
     @property
     def OPENAI_API_KEY(self) -> str:
         return self.openai_api_key.get_secret_value()

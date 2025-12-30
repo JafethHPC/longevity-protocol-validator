@@ -4,7 +4,7 @@ Rate Limiting Middleware
 Protects API endpoints from abuse using slowapi.
 Uses Redis for distributed rate limiting when available.
 """
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from starlette.requests import Request
