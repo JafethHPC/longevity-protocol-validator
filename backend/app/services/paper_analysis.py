@@ -4,10 +4,14 @@ from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.schemas.paper_analysis import (
     PaperAnalysis, PaperSection, StudyMethodology, 
     ExtractedFindings, StudyLimitations, StudyType
 )
+from app.services.llm import get_llm
+
+logger = get_logger(__name__)
 
 
 SECTION_PATTERNS = [
@@ -84,11 +88,7 @@ def identify_sections(full_text: str) -> List[PaperSection]:
 
 
 def extract_methodology(methods_text: str, title: str, user_query: str) -> StudyMethodology:
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY
-    ).with_structured_output(StudyMethodology)
+    llm = get_llm().with_structured_output(StudyMethodology)
     
     prompt = f"""Extract methodology details from this research paper section.
 
@@ -112,16 +112,12 @@ If information is not found, leave as null."""
     try:
         return llm.invoke(prompt)
     except Exception as e:
-        print(f"  Methodology extraction failed: {e}")
+        logger.debug(f"Methodology extraction failed: {e}")
         return StudyMethodology(study_type=StudyType.UNKNOWN)
 
 
 def extract_findings(results_text: str, title: str, user_query: str) -> ExtractedFindings:
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY
-    ).with_structured_output(ExtractedFindings)
+    llm = get_llm().with_structured_output(ExtractedFindings)
     
     prompt = f"""Extract key findings from this research paper's results section.
 
@@ -147,16 +143,12 @@ Be specific with numbers! Extract actual values, not vague descriptions."""
     try:
         return llm.invoke(prompt)
     except Exception as e:
-        print(f"  Findings extraction failed: {e}")
+        logger.debug(f"Findings extraction failed: {e}")
         return ExtractedFindings(main_finding="Extraction failed")
 
 
 def extract_limitations(discussion_text: str) -> StudyLimitations:
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY
-    ).with_structured_output(StudyLimitations)
+    llm = get_llm().with_structured_output(StudyLimitations)
     
     prompt = f"""Extract limitations and conflicts of interest from this discussion/conclusion section.
 
@@ -170,7 +162,7 @@ Extract:
     try:
         return llm.invoke(prompt)
     except Exception as e:
-        print(f"  Limitations extraction failed: {e}")
+        logger.debug(f"Limitations extraction failed: {e}")
         return StudyLimitations()
 
 
@@ -187,7 +179,7 @@ def analyze_paper(
     if not text_to_analyze or len(text_to_analyze) < 200:
         return None
     
-    print(f"  Analyzing: {title[:50]}...")
+    logger.debug(f"Analyzing: {title[:50]}...")
     
     sections = identify_sections(text_to_analyze)
     
@@ -256,7 +248,7 @@ def analyze_papers_batch(
     
     papers_to_analyze = papers[:max_papers]
     total = len(papers_to_analyze)
-    print(f"\n---DEEP ANALYSIS OF {total} PAPERS (parallel, {max_concurrent} concurrent)---")
+    logger.info(f"\n---DEEP ANALYSIS OF {total} PAPERS (parallel, {max_concurrent} concurrent)---")
     
     analyses = []
     completed = 0
@@ -282,16 +274,16 @@ def analyze_papers_batch(
             
             if analysis:
                 analyses.append((idx, analysis))
-                print(f"  [{completed}/{total}] ✓ {paper_title}... ({analysis.confidence_score:.0%})")
+                logger.info(f"  [{completed}/{total}] ✓ {paper_title}... ({analysis.confidence_score:.0%})")
             elif error:
-                print(f"  [{completed}/{total}] ✗ {paper_title}... (Error: {error[:30]})")
+                logger.info(f"  [{completed}/{total}] ✗ {paper_title}... (Error: {error[:30]})")
             else:
-                print(f"  [{completed}/{total}] ✗ {paper_title}... (Insufficient text)")
+                logger.info(f"  [{completed}/{total}] ✗ {paper_title}... (Insufficient text)")
     
     analyses.sort(key=lambda x: x[0])
     analyses = [a[1] for a in analyses]
     
-    print(f"---ANALYSIS COMPLETE: {len(analyses)} papers analyzed---")
+    logger.info(f"---ANALYSIS COMPLETE: {len(analyses)} papers analyzed---")
     
     return analyses
 

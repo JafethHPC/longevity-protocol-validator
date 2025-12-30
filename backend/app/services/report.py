@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 from langchain_openai import ChatOpenAI
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.schemas.report import (
     ResearchReport, Source, Finding, Protocol,
     ReportFindings, ExtractedProtocols
@@ -11,6 +12,9 @@ from app.schemas.retrieval import ResearchConfig
 from app.schemas.events import ProgressStep
 from app.services.retrieval import enhanced_retrieval, ProgressCallback
 from app.services.paper_analysis import analyze_papers_batch, format_analysis_for_context
+from app.services.llm import get_llm
+
+logger = get_logger(__name__)
 
 
 def _noop_callback(step: ProgressStep, message: str, detail: Optional[str] = None):
@@ -32,9 +36,9 @@ def generate_report(
         config: ResearchConfig controlling source quantities and types
         on_progress: Callback for progress updates
     """
-    print(f"\n{'='*60}")
-    print(f"GENERATING REPORT: {question}")
-    print(f"{'='*60}\n")
+    logger.info(f"{'='*60}")
+    logger.info(f"GENERATING REPORT: {question}")
+    logger.info(f"{'='*60}\n")
     
     papers = enhanced_retrieval(
         question, 
@@ -130,11 +134,11 @@ def generate_report(
         papers_used=len(papers)
     )
     
-    print(f"\n---REPORT GENERATED---")
-    print(f"  Sources: {len(sources)}")
-    print(f"  Findings: {len(key_findings)}")
-    print(f"  Protocols: {len(protocols)}")
-    print(f"  Deep analyses: {len(analyses)}")
+    logger.info(f"\n---REPORT GENERATED---")
+    logger.debug(f"Sources: {len(sources)}")
+    logger.debug(f"Findings: {len(key_findings)}")
+    logger.debug(f"Protocols: {len(protocols)}")
+    logger.debug(f"Deep analyses: {len(analyses)}")
     
     return report
 
@@ -165,21 +169,17 @@ Journal: {paper.get('journal', 'N/A')} ({paper.get('year', 'N/A')})
 {content_type}: {content}
 """)
     
-    print(f"  Context built: {fulltext_count} with full text, {len(papers) - fulltext_count} with abstract only")
+    logger.debug(f"Context built: {fulltext_count} with full text, {len(papers) - fulltext_count} with abstract only")
     if analyses:
-        print(f"  Structured analyses included: {len(analyses)}")
+        logger.debug(f"Structured analyses included: {len(analyses)}")
     
     return "\n".join(context_parts)
 
 
 def _generate_findings(question: str, context: str) -> ReportFindings:
-    print("---GENERATING FINDINGS---")
+    logger.info(f"---GENERATING FINDINGS---")
     
-    llm = ChatOpenAI(
-        model="gpt-4o",
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY
-    ).with_structured_output(ReportFindings, strict=False)
+    llm = get_llm(model="gpt-4o").with_structured_output(ReportFindings, strict=False)
     
     prompt = f"""You are a scientific research analyst. Generate a comprehensive, well-cited research report.
 
@@ -224,13 +224,9 @@ QUALITY CHECKLIST:
 
 
 def _extract_protocols(question: str, context: str) -> ExtractedProtocols:
-    print("---EXTRACTING PROTOCOLS---")
+    logger.info(f"---EXTRACTING PROTOCOLS---")
     
-    llm = ChatOpenAI(
-        model="gpt-4o",
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY
-    ).with_structured_output(ExtractedProtocols, strict=False)
+    llm = get_llm(model="gpt-4o").with_structured_output(ExtractedProtocols, strict=False)
     
     prompt = f"""Extract ACTIONABLE protocols that answer the research question. Focus on interventions that could be practically implemented.
 
@@ -271,13 +267,9 @@ RESEARCH DATA:
 
 
 def generate_followup_answer(report: ResearchReport, followup_question: str) -> str:
-    print(f"---ANSWERING FOLLOW-UP: {followup_question}---")
+    logger.info(f"---ANSWERING FOLLOW-UP: {followup_question}---")
     
-    llm = ChatOpenAI(
-        model="gpt-4o",
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY
-    )
+    llm = get_llm(model="gpt-4o")
     
     sources_context = "\n\n".join([
         f"[{s.index}] {s.title}\n{s.abstract}"

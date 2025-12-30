@@ -12,6 +12,9 @@ import re
 from pypdf import PdfReader
 
 from app.core.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class FullTextService:
@@ -21,11 +24,11 @@ class FullTextService:
     PMC_OA_BASE = "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi"
     PMC_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
     
-    def __init__(self, email: str = "longevity-validator@research.app"):
-        self.email = email
+    def __init__(self, email: Optional[str] = None):
+        self.email = email or settings.API_CONTACT_EMAIL
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": f"LongevityValidator/1.0 (mailto:{email})"
+            "User-Agent": f"LongevityValidator/1.0 (mailto:{self.email})"
         })
     
     def get_full_text(self, pmid: str = None, doi: str = None, pmcid: str = None) -> Optional[Dict]:
@@ -87,7 +90,7 @@ class FullTextService:
                 if records and "pmcid" in records[0]:
                     return records[0]["pmcid"]
         except Exception as e:
-            print(f"  PMID->PMCID conversion failed: {e}")
+            logger.debug(f"PMID->PMCID conversion failed: {e}")
         return None
     
     def _pmid_to_doi(self, pmid: str) -> Optional[str]:
@@ -104,7 +107,7 @@ class FullTextService:
                         if aid.get("idtype") == "doi":
                             return aid.get("value")
         except Exception as e:
-            print(f"  PMID->DOI conversion failed: {e}")
+            logger.debug(f"PMID->DOI conversion failed: {e}")
         return None
     
     def _get_pmc_fulltext(self, pmcid: str) -> Optional[str]:
@@ -140,7 +143,7 @@ class FullTextService:
             return None
             
         except Exception as e:
-            print(f"  PMC full text retrieval failed for {pmcid}: {e}")
+            logger.debug(f"PMC full text retrieval failed for {pmcid}: {e}")
             return None
     
     def _get_unpaywall_fulltext(self, doi: str) -> Optional[str]:
@@ -172,7 +175,7 @@ class FullTextService:
             return None
             
         except Exception as e:
-            print(f"  Unpaywall retrieval failed for {doi}: {e}")
+            logger.debug(f"Unpaywall retrieval failed for {doi}: {e}")
             return None
     
     def _download_and_extract_pdf(self, pdf_url: str) -> Optional[str]:
@@ -207,7 +210,7 @@ class FullTextService:
             return "\n\n".join(text_parts)
             
         except Exception as e:
-            print(f"  PDF extraction failed from {pdf_url[:50]}...: {e}")
+            logger.debug(f"PDF extraction failed from {pdf_url[:50]}...: {e}")
             return None
     
     def _clean_text(self, text: str) -> str:

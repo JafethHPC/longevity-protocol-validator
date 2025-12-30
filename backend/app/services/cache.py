@@ -10,7 +10,10 @@ import redis
 from datetime import timedelta
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.schemas.report import ResearchReport
+
+logger = get_logger(__name__)
 
 
 class ReportCache:
@@ -36,9 +39,9 @@ class ReportCache:
             )
             self._client.ping()
             self._connected = True
-            print("✓ Connected to Redis cache")
+            logger.info("Connected to Redis cache")
         except (redis.ConnectionError, redis.TimeoutError) as e:
-            print(f"⚠ Redis not available, using in-memory fallback: {e}")
+            logger.warning(f"Redis not available, using in-memory fallback: {e}")
             self._connected = False
             self._fallback_cache = {}
     
@@ -72,7 +75,7 @@ class ReportCache:
                 self._fallback_cache[key] = report.model_dump_json()
                 return True
         except Exception as e:
-            print(f"Cache set error: {e}")
+            logger.error(f"Cache set error: {e}")
             return False
     
     def get(self, report_id: str) -> Optional[ResearchReport]:
@@ -97,7 +100,7 @@ class ReportCache:
                 return ResearchReport.model_validate_json(data)
             return None
         except Exception as e:
-            print(f"Cache get error: {e}")
+            logger.error(f"Cache get error: {e}")
             return None
     
     def exists(self, report_id: str) -> bool:
@@ -125,7 +128,7 @@ class ReportCache:
                     return True
                 return False
         except Exception as e:
-            print(f"Cache delete error: {e}")
+            logger.error(f"Cache delete error: {e}")
             return False
     
     def list_reports(self) -> list:
@@ -137,7 +140,7 @@ class ReportCache:
             else:
                 return [k.replace("report:", "") for k in self._fallback_cache.keys()]
         except Exception as e:
-            print(f"Cache list error: {e}")
+            logger.error(f"Cache list error: {e}")
             return []
     
     def get_all_reports_summary(self) -> list:
