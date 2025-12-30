@@ -15,6 +15,11 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import time
 
+
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
 BASE_URL = "https://clinicaltrials.gov/api/v2"
 
 # Fields to retrieve for each study
@@ -59,7 +64,7 @@ def _search_trials_sync(
         phase: Filter by phase (PHASE1, PHASE2, PHASE3, PHASE4)
         has_results: Only return trials with posted results
     """
-    print(f"---SEARCHING CLINICALTRIALS.GOV: {query[:50]}...---")
+    logger.info(f"---SEARCHING CLINICALTRIALS.GOV: {query[:50]}...---")
     
     params = {
         "query.term": query,
@@ -89,7 +94,7 @@ def _search_trials_sync(
         )
         
         if response.status_code == 429:
-            print("  Rate limited, waiting 2 seconds...")
+            logger.warning(f"Rate limited, waiting 2 seconds...")
             time.sleep(2)
             response = requests.get(
                 f"{BASE_URL}/studies", 
@@ -99,7 +104,7 @@ def _search_trials_sync(
             )
         
         if response.status_code != 200:
-            print(f"  Error: {response.status_code}")
+            logger.error(f"Error: {response.status_code}")
             return []
         
         data = response.json()
@@ -111,17 +116,17 @@ def _search_trials_sync(
                 if trial:
                     trials.append(trial)
             except Exception as e:
-                print(f"  Error parsing trial: {e}")
+                logger.error(f"Error parsing trial: {e}")
                 continue
         
-        print(f"  Found {len(trials)} clinical trials")
+        logger.debug(f"Found {len(trials)} clinical trials")
         return trials
         
     except requests.exceptions.Timeout:
-        print("  ClinicalTrials.gov timeout")
+        logger.debug(f"ClinicalTrials.gov timeout")
         return []
     except Exception as e:
-        print(f"  ClinicalTrials.gov error: {e}")
+        logger.debug(f"ClinicalTrials.gov error: {e}")
         return []
 
 
@@ -267,7 +272,7 @@ async def get_trial_by_nct_id(nct_id: str) -> Optional[Dict]:
         Trial dictionary or None if not found
     """
     def _fetch_sync():
-        print(f"---FETCHING TRIAL: {nct_id}---")
+        logger.info(f"---FETCHING TRIAL: {nct_id}---")
         
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -282,14 +287,14 @@ async def get_trial_by_nct_id(nct_id: str) -> Optional[Dict]:
             )
             
             if response.status_code != 200:
-                print(f"  Error: {response.status_code}")
+                logger.error(f"Error: {response.status_code}")
                 return None
             
             data = response.json()
             return _normalize_trial(data)
             
         except Exception as e:
-            print(f"  Error fetching {nct_id}: {e}")
+            logger.debug(f"Error fetching {nct_id}: {e}")
             return None
     
     loop = asyncio.get_event_loop()

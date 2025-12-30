@@ -13,6 +13,11 @@ from typing import List, Dict
 import httpx
 import asyncio
 
+from app.core.logging import get_logger
+from app.core.config import settings
+
+logger = get_logger(__name__)
+
 
 async def search_openalex(query: str, max_results: int = 50) -> List[Dict]:
     """
@@ -26,10 +31,10 @@ async def search_openalex(query: str, max_results: int = 50) -> List[Dict]:
     This is an async function that should be awaited.
     Use asyncio.gather() to run in parallel with other sources.
     """
-    print(f"---SEARCHING OPENALEX: {query[:50]}...---")
+    logger.info(f"Searching OpenAlex: {query[:50]}...")
     
     headers = {
-        "User-Agent": "ResearchReportGenerator/1.0 (mailto:researcher@example.com)"
+        "User-Agent": f"ResearchReportGenerator/1.0 (mailto:{settings.API_CONTACT_EMAIL})"
     }
     
     url = "https://api.openalex.org/works"
@@ -47,12 +52,12 @@ async def search_openalex(query: str, max_results: int = 50) -> List[Dict]:
             
             # Handle rate limiting with retry
             if response.status_code == 429:
-                print("  Rate limited, waiting 1 second...")
+                logger.warning("OpenAlex rate limited, waiting 1 second...")
                 await asyncio.sleep(1)
                 response = await client.get(url, params=params, headers=headers)
             
             if response.status_code != 200:
-                print(f"  Error: {response.status_code}")
+                logger.error(f"OpenAlex error: HTTP {response.status_code}")
                 return []
             
             data = response.json()
@@ -85,14 +90,14 @@ async def search_openalex(query: str, max_results: int = 50) -> List[Dict]:
                     "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else work.get("id", "")
                 })
             
-            print(f"  Returned {len(papers)} papers with abstracts")
+            logger.info(f"OpenAlex: Returned {len(papers)} papers with abstracts")
             return papers
         
     except httpx.TimeoutException:
-        print("  OpenAlex timeout")
+        logger.error("OpenAlex timeout")
         return []
     except Exception as e:
-        print(f"  OpenAlex error: {e}")
+        logger.error(f"OpenAlex error: {e}")
         return []
 
 

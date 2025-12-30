@@ -14,7 +14,12 @@ from Bio import Entrez
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-Entrez.email = "researcher@example.com"
+from app.core.logging import get_logger
+from app.core.config import settings
+
+logger = get_logger(__name__)
+
+Entrez.email = settings.API_CONTACT_EMAIL
 
 # Shared executor for running sync Entrez calls
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -27,7 +32,7 @@ def _search_pubmed_sync(query: str, max_results: int = 50) -> List[Dict]:
     This is the actual search logic using Biopython's Entrez.
     It's wrapped by the async search_pubmed function.
     """
-    print(f"---SEARCHING PUBMED: {query[:50]}...---")
+    logger.info(f"Searching PubMed: {query[:50]}...")
     
     try:
         # Search for paper IDs
@@ -42,10 +47,10 @@ def _search_pubmed_sync(query: str, max_results: int = 50) -> List[Dict]:
         
         ids = record.get("IdList", [])
         if not ids:
-            print(f"  No results found")
+            logger.info("PubMed: No results found")
             return []
         
-        print(f"  Found {len(ids)} papers")
+        logger.debug(f"PubMed: Found {len(ids)} paper IDs")
         
         # Fetch full records
         handle = Entrez.efetch(db="pubmed", id=",".join(ids), retmode="xml")
@@ -91,11 +96,11 @@ def _search_pubmed_sync(query: str, max_results: int = 50) -> List[Dict]:
             except (KeyError, TypeError):
                 continue
         
-        print(f"  Returned {len(papers)} papers with abstracts")
+        logger.info(f"PubMed: Returned {len(papers)} papers with abstracts")
         return papers
         
     except Exception as e:
-        print(f"  PubMed error: {e}")
+        logger.error(f"PubMed error: {e}")
         return []
 
 

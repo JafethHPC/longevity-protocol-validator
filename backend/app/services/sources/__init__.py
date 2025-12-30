@@ -19,7 +19,7 @@ from .clinicaltrials import (
     get_trial_by_nct_id,
     search_trials_with_results
 )
-from .base import Paper
+from .base import Paper, BaseSource
 
 __all__ = [
     "search_pubmed",
@@ -30,4 +30,6 @@ __all__ = [
     "get_trial_by_nct_id",
     "search_trials_with_results",
     "Paper",
+    "BaseSource",
 ]
+

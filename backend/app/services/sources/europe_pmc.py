@@ -11,6 +11,10 @@ Uses httpx.AsyncClient for non-blocking HTTP requests.
 from typing import List, Dict
 import httpx
 
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 async def search_europe_pmc(query: str, max_results: int = 50) -> List[Dict]:
     """
@@ -23,7 +27,7 @@ async def search_europe_pmc(query: str, max_results: int = 50) -> List[Dict]:
     
     This is an async function - use asyncio.gather() to run in parallel.
     """
-    print(f"---SEARCHING EUROPE PMC: {query[:50]}...---")
+    logger.info(f"Searching Europe PMC: {query[:50]}...")
     
     url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
     params = {
@@ -39,7 +43,7 @@ async def search_europe_pmc(query: str, max_results: int = 50) -> List[Dict]:
             response = await client.get(url, params=params)
             
             if response.status_code != 200:
-                print(f"  Error: {response.status_code}")
+                logger.error(f"Europe PMC error: HTTP {response.status_code}")
                 return []
             
             data = response.json()
@@ -66,12 +70,12 @@ async def search_europe_pmc(query: str, max_results: int = 50) -> List[Dict]:
                     "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else result.get("fullTextUrlList", {}).get("fullTextUrl", [{}])[0].get("url", "")
                 })
             
-            print(f"  Returned {len(papers)} papers with abstracts")
+            logger.info(f"Europe PMC: Returned {len(papers)} papers with abstracts")
             return papers
         
     except httpx.TimeoutException:
-        print("  Europe PMC timeout")
+        logger.error("Europe PMC timeout")
         return []
     except Exception as e:
-        print(f"  Europe PMC error: {e}")
+        logger.error(f"Europe PMC error: {e}")
         return []

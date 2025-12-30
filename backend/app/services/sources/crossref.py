@@ -11,6 +11,11 @@ from typing import List, Dict
 import httpx
 import re
 
+from app.core.logging import get_logger
+from app.core.config import settings
+
+logger = get_logger(__name__)
+
 
 async def search_crossref(query: str, max_results: int = 50) -> List[Dict]:
     """
@@ -22,10 +27,10 @@ async def search_crossref(query: str, max_results: int = 50) -> List[Dict]:
     
     This is an async function - use asyncio.gather() to run in parallel.
     """
-    print(f"---SEARCHING CROSSREF: {query[:50]}...---")
+    logger.info(f"Searching CrossRef: {query[:50]}...")
     
     headers = {
-        "User-Agent": "ResearchReportGenerator/1.0 (mailto:researcher@example.com)"
+        "User-Agent": f"ResearchReportGenerator/1.0 (mailto:{settings.API_CONTACT_EMAIL})"
     }
     
     url = "https://api.crossref.org/works"
@@ -43,7 +48,7 @@ async def search_crossref(query: str, max_results: int = 50) -> List[Dict]:
             response = await client.get(url, params=params, headers=headers)
             
             if response.status_code != 200:
-                print(f"  Error: {response.status_code}")
+                logger.error(f"CrossRef error: HTTP {response.status_code}")
                 return []
             
             data = response.json()
@@ -81,12 +86,12 @@ async def search_crossref(query: str, max_results: int = 50) -> List[Dict]:
                     "url": item.get("URL", "") or f"https://doi.org/{doi}" if doi else ""
                 })
             
-            print(f"  Returned {len(papers)} papers with abstracts")
+            logger.info(f"CrossRef: Returned {len(papers)} papers with abstracts")
             return papers
         
     except httpx.TimeoutException:
-        print("  CrossRef timeout")
+        logger.error("CrossRef timeout")
         return []
     except Exception as e:
-        print(f"  CrossRef error: {e}")
+        logger.error(f"CrossRef error: {e}")
         return []
