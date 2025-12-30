@@ -3,6 +3,8 @@ FastAPI Application Entry Point
 
 Research Report Generator API
 """
+import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,7 +27,10 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 app.include_router(reports_router)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Mount static files only if directory exists
+static_dir = Path("static")
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 
 origins = [
     "http://localhost:4200",
