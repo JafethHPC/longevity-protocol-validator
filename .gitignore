@@ -3,8 +3,10 @@
 .vscode/
 .idea/
 
-# context dump
+# context dump and planning docs
 CONTEXT_DUMP.md
+*.md
+!README.md
 
 # backend
 __pycache__/
