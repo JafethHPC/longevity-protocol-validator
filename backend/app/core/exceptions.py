@@ -96,12 +96,21 @@ class LLMError(LongevityValidatorError):
 
 class LLMRateLimitError(LLMError):
     """OpenAI rate limit exceeded."""
-    def __init__(self, retry_after: int = None):
+    def __init__(self, wait_seconds: int = None):
         msg = "OpenAI rate limit exceeded"
-        if retry_after:
-            msg += f", retry after {retry_after}s"
+        if wait_seconds:
+            msg += f", retry after {wait_seconds}s"
         super().__init__(msg)
-        self.retry_after = retry_after
+        self.wait_seconds = wait_seconds
+        self.retry_after = wait_seconds  # Alias for compatibility
+
+
+class LLMContextLengthError(LLMError):
+    """Input exceeds model's context length."""
+    def __init__(self, token_count: int, max_tokens: int):
+        super().__init__(f"Input has {token_count} tokens, max is {max_tokens}")
+        self.token_count = token_count
+        self.max_tokens = max_tokens
 
 
 class LLMContentFilterError(LLMError):
@@ -122,9 +131,13 @@ class CacheError(LongevityValidatorError):
 
 class CacheConnectionError(CacheError):
     """Failed to connect to cache backend."""
-    def __init__(self, backend: str, detail: str = None):
-        msg = f"Failed to connect to {backend} cache"
+    def __init__(self, host: str, port: int = None, detail: str = None):
+        if port:
+            msg = f"Failed to connect to cache at {host}:{port}"
+        else:
+            msg = f"Failed to connect to {host} cache"
         if detail:
             msg += f": {detail}"
         super().__init__(msg)
-        self.backend = backend
+        self.host = host
+        self.port = port
